@@ -13,6 +13,7 @@ Window {
     readonly property int stateRunning: 1
     readonly property int stateWaveCleared: 2
     readonly property int stateGameOver: 3
+    readonly property int statePaused: 4
 
     property int gameState: stateStart
     property int score: 0
@@ -539,11 +540,24 @@ Window {
             if (event.isAutoRepeat)
                 return
 
-            if (event.key === Qt.Key_Left || event.key === Qt.Key_A)
+            if (event.key === Qt.Key_P) {
+                if (gameState === stateRunning) {
+                    leftPressed = false
+                    rightPressed = false
+                    shootPressed = false
+                    setGameState(statePaused)
+                } else if (gameState === statePaused) {
+                    setGameState(stateRunning)
+                }
+                event.accepted = true
+                return
+            }
+
+            if (gameState === stateRunning && (event.key === Qt.Key_Left || event.key === Qt.Key_A))
                 leftPressed = true
-            if (event.key === Qt.Key_Right || event.key === Qt.Key_D)
+            if (gameState === stateRunning && (event.key === Qt.Key_Right || event.key === Qt.Key_D))
                 rightPressed = true
-            if (event.key === Qt.Key_Space)
+            if (gameState === stateRunning && event.key === Qt.Key_Space)
                 shootPressed = true
 
             if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && gameState === stateStart)
@@ -707,6 +721,14 @@ Window {
                 ctx.fillStyle = "#dce8ff"
                 ctx.font = "24px monospace"
                 ctx.fillText("Press ENTER to restart", width * 0.5, height * 0.55)
+            } else if (gameState === statePaused) {
+                ctx.fillStyle = "rgba(5, 10, 20, 0.58)"
+                ctx.fillRect(0, 0, width, height)
+                ctx.fillStyle = "#cfe2ff"
+                ctx.font = "bold 48px monospace"
+                ctx.fillText("PAUSED", width * 0.5, height * 0.46)
+                ctx.font = "24px monospace"
+                ctx.fillText("Press P to resume", width * 0.5, height * 0.55)
             }
             ctx.textAlign = "start"
         }
