@@ -163,8 +163,9 @@ Window {
 
         for (var sy = 0; sy < sprite.length; ++sy) {
             for (var sx = 0; sx < sprite[sy].length; ++sx) {
-                if (sprite[sy][sx] === "1")
+                if (sprite[sy][sx] === "1") {
                     ctx.fillRect(x + sx * scale, y + sy * scale, scale, scale)
+                }
             }
         }
     }
@@ -182,20 +183,23 @@ Window {
     }
 
     function playSfx(effect) {
-        if (!soundsEnabled || !effect)
+        if (!soundsEnabled || !effect) {
             return
+        }
         effect.stop()
         effect.play()
     }
 
     function setGameState(nextState) {
-        if (gameState === nextState)
+        if (gameState === nextState) {
             return
+        }
         gameState = nextState
-        if (nextState === stateWaveCleared)
+        if (nextState === stateWaveCleared) {
             playSfx(sfxWaveClear)
-        else if (nextState === stateGameOver)
+        } else if (nextState === stateGameOver) {
             playSfx(sfxGameOver)
+        }
     }
 
     function loadHighScore() {
@@ -228,18 +232,21 @@ Window {
 
     function updateMusicState() {
         if (musicEnabled) {
-            if (bgmPlayer.playbackState !== MediaPlayer.PlayingState)
+            if (bgmPlayer.playbackState !== MediaPlayer.PlayingState) {
                 bgmPlayer.play()
+            }
         } else {
-            if (bgmPlayer.playbackState !== MediaPlayer.StoppedState)
+            if (bgmPlayer.playbackState !== MediaPlayer.StoppedState) {
                 bgmPlayer.stop()
+            }
         }
     }
 
     function changeMusicVolume(delta) {
         musicVolume = clamp(musicVolume + delta, 0.0, 1.0)
-        if (musicVolume > 0 && !musicEnabled)
+        if (musicVolume > 0 && !musicEnabled) {
             musicEnabled = true
+        }
     }
 
     function spawnWave() {
@@ -353,14 +360,16 @@ Window {
     function updateBullets(dt) {
         for (var i = 0; i < playerBullets.length; ++i) {
             playerBullets[i].y -= playerShotSpeed * dt
-            if (playerBullets[i].y + playerBullets[i].h < 0)
+            if (playerBullets[i].y + playerBullets[i].h < 0) {
                 playerBullets[i].dead = true
+            }
         }
 
         for (var j = 0; j < enemyBullets.length; ++j) {
             enemyBullets[j].y += enemyShotSpeed * dt
-            if (enemyBullets[j].y > height)
+            if (enemyBullets[j].y > height) {
                 enemyBullets[j].dead = true
+            }
         }
     }
 
@@ -370,8 +379,9 @@ Window {
         var maxX = -1e9
 
         for (var i = 0; i < aliens.length; ++i) {
-            if (!aliens[i].alive)
+            if (!aliens[i].alive) {
                 continue
+            }
             aliveCount += 1
             minX = Math.min(minX, aliens[i].x)
             maxX = Math.max(maxX, aliens[i].x + aliens[i].w)
@@ -388,13 +398,15 @@ Window {
             alienDirection *= -1
             alienSpeed += 7
             for (var k = 0; k < aliens.length; ++k) {
-                if (aliens[k].alive)
+                if (aliens[k].alive) {
                     aliens[k].y += alienDrop
+                }
             }
         } else {
             for (var m = 0; m < aliens.length; ++m) {
-                if (aliens[m].alive)
+                if (aliens[m].alive) {
                     aliens[m].x += moveX
+                }
             }
         }
 
@@ -408,28 +420,33 @@ Window {
 
     function tryEnemyShoot(dt) {
         enemyShootClock += dt
-        if (enemyBullets.length >= maxEnemyBullets || enemyShootClock < enemyShootDelay)
+        if (enemyBullets.length >= maxEnemyBullets || enemyShootClock < enemyShootDelay) {
             return
+        }
 
         enemyShootClock = 0
 
         var columns = {}
         for (var i = 0; i < aliens.length; ++i) {
             var a = aliens[i]
-            if (!a.alive)
+            if (!a.alive) {
                 continue
+            }
             var key = Math.round(a.x)
             var picked = columns[key]
-            if (!picked || a.y > picked.y)
+            if (!picked || a.y > picked.y) {
                 columns[key] = a
+            }
         }
 
         var shooters = []
-        for (var k in columns)
+        for (var k in columns) {
             shooters.push(columns[k])
+        }
 
-        if (shooters.length === 0)
+        if (shooters.length === 0) {
             return
+        }
 
         var shooter = shooters[Math.floor(Math.random() * shooters.length)]
         enemyBullets.push({
@@ -455,8 +472,9 @@ Window {
     }
 
     function handlePlayerFire() {
-        if (!shootPressed || shootCooldown > 0)
+        if (!shootPressed || shootCooldown > 0) {
             return
+        }
 
         playerBullets.push({
             x: playerX + playerWidth * 0.5 - 2,
@@ -472,13 +490,15 @@ Window {
     function handleCollisions() {
         for (var i = 0; i < playerBullets.length; ++i) {
             var pb = playerBullets[i]
-            if (pb.dead)
+            if (pb.dead) {
                 continue
+            }
 
             for (var a = 0; a < aliens.length; ++a) {
                 var alien = aliens[a]
-                if (!alien.alive)
+                if (!alien.alive) {
                     continue
+                }
                 if (aabb(pb.x, pb.y, pb.w, pb.h, alien.x, alien.y, alien.w, alien.h)) {
                     alien.alive = false
                     pb.dead = true
@@ -489,13 +509,15 @@ Window {
                 }
             }
 
-            if (pb.dead)
+            if (pb.dead) {
                 continue
+            }
 
             for (var b = 0; b < bunkers.length; ++b) {
                 var block = bunkers[b]
-                if (block.hp <= 0)
+                if (block.hp <= 0) {
                     continue
+                }
                 if (aabb(pb.x, pb.y, pb.w, pb.h, block.x, block.y, block.w, block.h)) {
                     block.hp -= 2
                     pb.dead = true
@@ -506,8 +528,9 @@ Window {
 
         for (var j = 0; j < enemyBullets.length; ++j) {
             var eb = enemyBullets[j]
-            if (eb.dead)
+            if (eb.dead) {
                 continue
+            }
 
             if (aabb(eb.x, eb.y, eb.w, eb.h, playerX, playerY, playerWidth, playerHeight)) {
                 eb.dead = true
@@ -523,8 +546,9 @@ Window {
 
             for (var c = 0; c < bunkers.length; ++c) {
                 var bunkerCell = bunkers[c]
-                if (bunkerCell.hp <= 0)
+                if (bunkerCell.hp <= 0) {
                     continue
+                }
                 if (aabb(eb.x, eb.y, eb.w, eb.h, bunkerCell.x, bunkerCell.y, bunkerCell.w, bunkerCell.h)) {
                     bunkerCell.hp -= 1
                     eb.dead = true
@@ -534,35 +558,41 @@ Window {
         }
 
         for (var z = bunkers.length - 1; z >= 0; --z) {
-            if (bunkers[z].hp <= 0)
+            if (bunkers[z].hp <= 0) {
                 bunkers.splice(z, 1)
+            }
         }
 
         for (var p = playerBullets.length - 1; p >= 0; --p) {
-            if (playerBullets[p].dead)
+            if (playerBullets[p].dead) {
                 playerBullets.splice(p, 1)
+            }
         }
 
         for (var e = enemyBullets.length - 1; e >= 0; --e) {
-            if (enemyBullets[e].dead)
+            if (enemyBullets[e].dead) {
                 enemyBullets.splice(e, 1)
+            }
         }
     }
 
     function stepSimulation(dt) {
         shootCooldown = Math.max(0, shootCooldown - dt)
 
-        if (leftPressed)
+        if (leftPressed) {
             playerX -= playerSpeed * dt
-        if (rightPressed)
+        }
+        if (rightPressed) {
             playerX += playerSpeed * dt
+        }
         playerX = clamp(playerX, 10, width - playerWidth - 10)
 
         handlePlayerFire()
         updateBullets(dt)
         updateAliens(dt)
-        if (gameState !== stateRunning)
+        if (gameState !== stateRunning) {
             return
+        }
 
         tryEnemyShoot(dt)
         handleCollisions()
@@ -574,67 +604,76 @@ Window {
         focus: true
 
         Keys.onPressed: function(event) {
-            if (event.isAutoRepeat)
+            if (event.isAutoRepeat) {
                 return
+            }
 
             if (event.key === Qt.Key_M) {
-                musicEnabled = !musicEnabled
+                root.musicEnabled = !root.musicEnabled
                 event.accepted = true
                 return
             }
 
             if (event.key === Qt.Key_Minus || event.key === Qt.Key_Underscore) {
-                changeMusicVolume(-0.05)
+                root.changeMusicVolume(-0.05)
                 event.accepted = true
                 return
             }
 
             if (event.key === Qt.Key_Equal || event.key === Qt.Key_Plus) {
-                changeMusicVolume(0.05)
+                root.changeMusicVolume(0.05)
                 event.accepted = true
                 return
             }
 
             if (event.key === Qt.Key_P) {
-                if (gameState === stateRunning) {
-                    leftPressed = false
-                    rightPressed = false
-                    shootPressed = false
-                    setGameState(statePaused)
-                } else if (gameState === statePaused) {
-                    setGameState(stateRunning)
+                if (root.gameState === root.stateRunning) {
+                    root.leftPressed = false
+                    root.rightPressed = false
+                    root.shootPressed = false
+                    root.setGameState(root.statePaused)
+                } else if (root.gameState === root.statePaused) {
+                    root.setGameState(root.stateRunning)
                 }
                 event.accepted = true
                 return
             }
 
-            if (gameState === stateRunning && (event.key === Qt.Key_Left || event.key === Qt.Key_A))
-                leftPressed = true
-            if (gameState === stateRunning && (event.key === Qt.Key_Right || event.key === Qt.Key_D))
-                rightPressed = true
-            if (gameState === stateRunning && event.key === Qt.Key_Space)
-                shootPressed = true
+            if (root.gameState === root.stateRunning && (event.key === Qt.Key_Left || event.key === Qt.Key_A)) {
+                root.leftPressed = true
+            }
+            if (root.gameState === root.stateRunning && (event.key === Qt.Key_Right || event.key === Qt.Key_D)) {
+                root.rightPressed = true
+            }
+            if (root.gameState === root.stateRunning && event.key === Qt.Key_Space) {
+                root.shootPressed = true
+            }
 
-            if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && gameState === stateStart)
-                startNewGame()
-            else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && gameState === stateGameOver)
-                startNewGame()
-            else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && gameState === stateWaveCleared)
-                nextWave()
+            if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && root.gameState === root.stateStart) {
+                root.startNewGame()
+            } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && root.gameState === root.stateGameOver) {
+                root.startNewGame()
+            } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && root.gameState === root.stateWaveCleared) {
+                root.nextWave()
+            }
 
             event.accepted = true
         }
 
         Keys.onReleased: function(event) {
-            if (event.isAutoRepeat)
+            if (event.isAutoRepeat) {
                 return
+            }
 
-            if (event.key === Qt.Key_Left || event.key === Qt.Key_A)
-                leftPressed = false
-            if (event.key === Qt.Key_Right || event.key === Qt.Key_D)
-                rightPressed = false
-            if (event.key === Qt.Key_Space)
-                shootPressed = false
+            if (event.key === Qt.Key_Left || event.key === Qt.Key_A) {
+                root.leftPressed = false
+            }
+            if (event.key === Qt.Key_Right || event.key === Qt.Key_D) {
+                root.rightPressed = false
+            }
+            if (event.key === Qt.Key_Space) {
+                root.shootPressed = false
+            }
 
             event.accepted = true
         }
@@ -647,12 +686,13 @@ Window {
         running: true
         onTriggered: {
             var nowMs = Date.now()
-            var dt = lastFrameMs > 0 ? (nowMs - lastFrameMs) / 1000.0 : interval / 1000.0
-            lastFrameMs = nowMs
+            var dt = root.lastFrameMs > 0 ? (nowMs - root.lastFrameMs) / 1000.0 : interval / 1000.0
+            root.lastFrameMs = nowMs
             dt = Math.min(dt, 0.25)
             root.renderClock += dt
-            if (root.gameState === root.stateRunning)
+            if (root.gameState === root.stateRunning) {
                 root.stepSimulation(dt)
+            }
             if (root.gameState === root.stateRunning) {
                 root.invaderAnimClock += dt
                 if (root.invaderAnimClock >= 0.30) {
@@ -693,9 +733,9 @@ Window {
             ctx.fill()
             ctx.globalAlpha = 1
 
-            for (var s = 0; s < stars.length; ++s) {
-                var star = stars[s]
-                var twinkle = 0.55 + 0.45 * Math.sin(renderClock * 1.7 + star.phase)
+            for (var s = 0; s < root.stars.length; ++s) {
+                var star = root.stars[s]
+                var twinkle = 0.55 + 0.45 * Math.sin(root.renderClock * 1.7 + star.phase)
                 ctx.globalAlpha = star.a * twinkle
                 ctx.fillStyle = "#e9f2ff"
                 ctx.beginPath()
@@ -704,10 +744,11 @@ Window {
             }
             ctx.globalAlpha = 1
 
-            for (var b = 0; b < bunkers.length; ++b) {
-                var block = bunkers[b]
-                if (block.hp <= 0)
+            for (var b = 0; b < root.bunkers.length; ++b) {
+                var block = root.bunkers[b]
+                if (block.hp <= 0) {
                     continue
+                }
                 var bunkerColor = block.hp === 3 ? "#5ad65a" : (block.hp === 2 ? "#3fb03f" : "#2a7d2a")
                 ctx.fillStyle = bunkerColor
                 ctx.fillRect(block.x, block.y, block.w, block.h)
@@ -715,25 +756,26 @@ Window {
                 ctx.fillRect(block.x, block.y, block.w, 2)
             }
 
-            drawPlayer(ctx)
+            root.drawPlayer(ctx)
 
-            for (var i = 0; i < aliens.length; ++i) {
-                var alien = aliens[i]
-                if (!alien.alive)
+            for (var i = 0; i < root.aliens.length; ++i) {
+                var alien = root.aliens[i]
+                if (!alien.alive) {
                     continue
-                drawAlien(ctx, alien)
+                }
+                root.drawAlien(ctx, alien)
             }
 
-            for (var p = 0; p < playerBullets.length; ++p) {
-                var pb = playerBullets[p]
+            for (var p = 0; p < root.playerBullets.length; ++p) {
+                var pb = root.playerBullets[p]
                 ctx.fillStyle = "#f4f8ff"
                 ctx.fillRect(pb.x, pb.y, pb.w, pb.h)
                 ctx.fillStyle = "rgba(170, 220, 255, 0.5)"
                 ctx.fillRect(pb.x, pb.y + pb.h, pb.w, 6)
             }
 
-            for (var e = 0; e < enemyBullets.length; ++e) {
-                var eb = enemyBullets[e]
+            for (var e = 0; e < root.enemyBullets.length; ++e) {
+                var eb = root.enemyBullets[e]
                 ctx.fillStyle = "#ff9090"
                 ctx.fillRect(eb.x, eb.y, eb.w, eb.h)
                 ctx.fillStyle = "rgba(255, 109, 109, 0.4)"
@@ -744,35 +786,36 @@ Window {
             ctx.fillRect(0, 0, width, 76)
             ctx.fillStyle = "#dce8ff"
             ctx.font = "bold 22px monospace"
-            ctx.fillText("SCORE  " + score, 22, 32)
-            ctx.fillText("HIGH  " + highScore, width * 0.5 - 95, 32)
-            ctx.fillText("LIVES  " + lives, width - 180, 32)
+            ctx.fillText("SCORE  " + root.score, 22, 32)
+            ctx.fillText("HIGH  " + root.highScore, width * 0.5 - 95, 32)
+            ctx.fillText("LIVES  " + root.lives, width - 180, 32)
             ctx.font = "bold 20px monospace"
-            ctx.fillText("WAVE  " + level, width * 0.5 - 60, 62)
+            ctx.fillText("WAVE  " + root.level, width * 0.5 - 60, 62)
 
             ctx.globalAlpha = 0.035
             ctx.fillStyle = "#c7d8ff"
-            for (var y = 84; y < height; y += 8)
+            for (var y = 84; y < height; y += 8) {
                 ctx.fillRect(0, y, width, 1)
+            }
             ctx.globalAlpha = 1
 
             ctx.textAlign = "center"
-            if (gameState === stateStart) {
+            if (root.gameState === root.stateStart) {
                 ctx.fillStyle = "#dce8ff"
                 ctx.font = "bold 48px monospace"
                 ctx.fillText("SPACE INVADERS", width * 0.5, height * 0.42)
                 ctx.font = "24px monospace"
                 ctx.fillText("Press ENTER to start", width * 0.5, height * 0.52)
-                ctx.fillText("High Score: " + highScore, width * 0.5, height * 0.58)
+                ctx.fillText("High Score: " + root.highScore, width * 0.5, height * 0.58)
                 ctx.fillText("Move: A/D or Left/Right  Fire: Space", width * 0.5, height * 0.64)
-            } else if (gameState === stateWaveCleared) {
+            } else if (root.gameState === root.stateWaveCleared) {
                 ctx.fillStyle = "#b5ffb5"
                 ctx.font = "bold 46px monospace"
                 ctx.fillText("WAVE CLEARED", width * 0.5, height * 0.46)
                 ctx.fillStyle = "#dce8ff"
                 ctx.font = "24px monospace"
                 ctx.fillText("Press ENTER for next wave", width * 0.5, height * 0.55)
-            } else if (gameState === stateGameOver) {
+            } else if (root.gameState === root.stateGameOver) {
                 ctx.fillStyle = "rgba(8, 14, 28, 0.72)"
                 ctx.fillRect(width * 0.5 - 260, height * 0.46 - 70, 520, 190)
                 ctx.strokeStyle = "rgba(193, 214, 255, 0.45)"
@@ -784,8 +827,8 @@ Window {
                 ctx.fillStyle = "#dce8ff"
                 ctx.font = "24px monospace"
                 ctx.fillText("Press ENTER to restart", width * 0.5, height * 0.55)
-                ctx.fillText("High Score: " + highScore, width * 0.5, height * 0.61)
-            } else if (gameState === statePaused) {
+                ctx.fillText("High Score: " + root.highScore, width * 0.5, height * 0.61)
+            } else if (root.gameState === root.statePaused) {
                 ctx.fillStyle = "rgba(5, 10, 20, 0.58)"
                 ctx.fillRect(0, 0, width, height)
                 ctx.fillStyle = "#cfe2ff"
