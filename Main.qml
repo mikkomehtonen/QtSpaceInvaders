@@ -50,6 +50,8 @@ Window {
     property real invaderAnimClock: 0
     property int invaderAnimFrame: 0
     property real lastFrameMs: 0
+    property int spriteCachePaintCount: 0
+    property bool spriteCacheReady: false
 
     property bool leftPressed: false
     property real screenShakeIntensity: 0
@@ -175,15 +177,42 @@ Window {
     }
 
     function drawPlayer(ctx) {
-        drawPixelSprite(ctx, playerSprite, playerX, playerY, 4, "#8ee9ff", "")
+        if (spriteCacheReady) {
+            ctx.drawImage(playerSpriteCache, playerX, playerY)
+        } else {
+            drawPixelSprite(ctx, playerSprite, playerX, playerY, 4, "#8ee9ff", "")
+        }
     }
 
     function drawAlien(ctx, alien) {
         var type = alien.row < 2 ? 0 : (alien.row < 4 ? 1 : 2)
-        var spriteSet = invaderSprites[type]
-        var sprite = invaderAnimFrame === 0 ? spriteSet.a : spriteSet.b
         var bodyColor = type === 0 ? "#ff8f8f" : (type === 1 ? "#ffd67e" : "#98ff95")
-        drawPixelSprite(ctx, sprite, alien.x, alien.y + 1, 3, bodyColor, "")
+        if (spriteCacheReady) {
+            ctx.drawImage(alienSpriteCanvas(type, invaderAnimFrame), alien.x, alien.y + 1)
+        } else {
+            var spriteSet = invaderSprites[type]
+            var sprite = invaderAnimFrame === 0 ? spriteSet.a : spriteSet.b
+            drawPixelSprite(ctx, sprite, alien.x, alien.y + 1, 3, bodyColor, "")
+        }
+    }
+
+    function alienSpriteCanvas(type, frame) {
+        if (type === 0) {
+            return frame === 0 ? alienType0Frame0Cache : alienType0Frame1Cache
+        } else if (type === 1) {
+            return frame === 0 ? alienType1Frame0Cache : alienType1Frame1Cache
+        }
+        return frame === 0 ? alienType2Frame0Cache : alienType2Frame1Cache
+    }
+
+    function markSpriteCachePainted(canvasItem) {
+        if (!canvasItem.cachePainted) {
+            canvasItem.cachePainted = true
+            spriteCachePaintCount += 1
+            if (spriteCachePaintCount >= 7) {
+                spriteCacheReady = true
+            }
+        }
     }
 
     function alienColorForRow(row) {
@@ -785,6 +814,102 @@ Window {
         }
     }
 
+    Item {
+        id: spriteCacheLayer
+        visible: false
+
+        Canvas {
+            id: playerSpriteCache
+            width: 56
+            height: 24
+            property bool cachePainted: false
+            onPaint: {
+                var pctx = getContext("2d")
+                pctx.reset()
+                root.drawPixelSprite(pctx, root.playerSprite, 0, 0, 4, "#8ee9ff", "")
+                root.markSpriteCachePainted(playerSpriteCache)
+            }
+        }
+
+        Canvas {
+            id: alienType0Frame0Cache
+            width: 36
+            height: 24
+            property bool cachePainted: false
+            onPaint: {
+                var c = getContext("2d")
+                c.reset()
+                root.drawPixelSprite(c, root.invaderSprites[0].a, 0, 0, 3, "#ff8f8f", "")
+                root.markSpriteCachePainted(alienType0Frame0Cache)
+            }
+        }
+
+        Canvas {
+            id: alienType0Frame1Cache
+            width: 36
+            height: 24
+            property bool cachePainted: false
+            onPaint: {
+                var c = getContext("2d")
+                c.reset()
+                root.drawPixelSprite(c, root.invaderSprites[0].b, 0, 0, 3, "#ff8f8f", "")
+                root.markSpriteCachePainted(alienType0Frame1Cache)
+            }
+        }
+
+        Canvas {
+            id: alienType1Frame0Cache
+            width: 36
+            height: 24
+            property bool cachePainted: false
+            onPaint: {
+                var c = getContext("2d")
+                c.reset()
+                root.drawPixelSprite(c, root.invaderSprites[1].a, 0, 0, 3, "#ffd67e", "")
+                root.markSpriteCachePainted(alienType1Frame0Cache)
+            }
+        }
+
+        Canvas {
+            id: alienType1Frame1Cache
+            width: 36
+            height: 24
+            property bool cachePainted: false
+            onPaint: {
+                var c = getContext("2d")
+                c.reset()
+                root.drawPixelSprite(c, root.invaderSprites[1].b, 0, 0, 3, "#ffd67e", "")
+                root.markSpriteCachePainted(alienType1Frame1Cache)
+            }
+        }
+
+        Canvas {
+            id: alienType2Frame0Cache
+            width: 36
+            height: 24
+            property bool cachePainted: false
+            onPaint: {
+                var c = getContext("2d")
+                c.reset()
+                root.drawPixelSprite(c, root.invaderSprites[2].a, 0, 0, 3, "#98ff95", "")
+                root.markSpriteCachePainted(alienType2Frame0Cache)
+            }
+        }
+
+        Canvas {
+            id: alienType2Frame1Cache
+            width: 36
+            height: 24
+            property bool cachePainted: false
+            onPaint: {
+                var c = getContext("2d")
+                c.reset()
+                root.drawPixelSprite(c, root.invaderSprites[2].b, 0, 0, 3, "#98ff95", "")
+                root.markSpriteCachePainted(alienType2Frame1Cache)
+            }
+        }
+    }
+
     Canvas {
         id: gameCanvas
         anchors.fill: parent
@@ -1025,6 +1150,13 @@ Window {
 
     Component.onCompleted: {
         loadHighScore()
+        playerSpriteCache.requestPaint()
+        alienType0Frame0Cache.requestPaint()
+        alienType0Frame1Cache.requestPaint()
+        alienType1Frame0Cache.requestPaint()
+        alienType1Frame1Cache.requestPaint()
+        alienType2Frame0Cache.requestPaint()
+        alienType2Frame1Cache.requestPaint()
         createStars()
         updateMusicState()
         gameCanvas.requestPaint()
