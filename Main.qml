@@ -52,6 +52,8 @@ Window {
     property real lastFrameMs: 0
 
     property bool leftPressed: false
+    property real screenShakeIntensity: 0
+    property real screenShakeDuration: 0
     property bool rightPressed: false
     property bool shootPressed: false
 
@@ -200,6 +202,11 @@ Window {
             playSfx(sfxWaveClear)
         } else if (nextState === stateGameOver) {
             playSfx(sfxGameOver)
+        }
+        if (nextState === stateGameOver) {
+            // Reset screen shake when game over
+            screenShakeIntensity = 0
+            screenShakeDuration = 0
         }
     }
 
@@ -537,6 +544,10 @@ Window {
             if (aabb(eb.x, eb.y, eb.w, eb.h, playerX, playerY, playerWidth, playerHeight)) {
                 eb.dead = true
                 lives -= 1
+                // Add screen shake effect when player is hit
+                screenShakeIntensity = 12
+                screenShakeDuration = 0.3
+
                 playSfx(sfxPlayerHit)
                 if (lives <= 0) {
                     setGameState(stateGameOver)
@@ -598,6 +609,12 @@ Window {
 
         tryEnemyShoot(dt)
         handleCollisions()
+        if (screenShakeDuration > 0) {
+            screenShakeDuration -= dt
+            if (screenShakeDuration <= 0) {
+                screenShakeIntensity = 0
+            }
+        }
     }
 
     Item {
@@ -736,6 +753,14 @@ Window {
             var bg = ctx.createLinearGradient(0, 0, 0, height)
             bg.addColorStop(0, "#060710")
             bg.addColorStop(0.55, "#090c18")
+            // Apply screen shake effect
+            if (root.screenShakeIntensity > 0) {
+                var shakeX = (Math.random() - 0.5) * root.screenShakeIntensity
+                var shakeY = (Math.random() - 0.5) * root.screenShakeIntensity
+                ctx.save()
+                ctx.translate(shakeX, shakeY)
+            }
+
             bg.addColorStop(1, "#020306")
             ctx.fillStyle = bg
             ctx.fillRect(0, 0, width, height)
@@ -880,6 +905,11 @@ Window {
                 ctx.fillText("H - Close Help", width * 0.5, height * 0.5 + 185)
             }
             ctx.textAlign = "start"
+            // Restore for screen shake effect
+            if (root.screenShakeIntensity > 0) {
+                ctx.restore()
+            }
+
         }
     }
 
