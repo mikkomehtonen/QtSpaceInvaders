@@ -7,7 +7,9 @@ A classic Space Invaders style game built with Qt 6 and QML.
 - Traditional Space Invaders gameplay loop
 - Wave progression with increasing difficulty
 - Player lives, score, and persistent high score
+- Short player hit/death animation on impact
 - Pause/resume support
+- Toggleable in-game help screen with full control list
 - Sound effects for key game events
 - Sci-fi background music playlist with keyboard controls
 - Retro-styled QML `Canvas` rendering
@@ -40,6 +42,7 @@ cmake --build build
 - `D` / `Right Arrow`: Move right
 - `Space`: Fire
 - `P`: Pause / resume
+- `H`: Toggle help screen
 - `M`: Mute / unmute music
 - `-`: Music volume down
 - `=` (or `+`): Music volume up

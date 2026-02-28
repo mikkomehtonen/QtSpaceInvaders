@@ -45,6 +45,7 @@ Window {
     property real sfxVolume: 0.55
     property bool musicEnabled: true
     property real musicVolume: 0.26
+    property bool showHelp: false
     property real renderClock: 0
     property real invaderAnimClock: 0
     property int invaderAnimFrame: 0
@@ -331,6 +332,7 @@ Window {
         score = 0
         lives = 3
         level = 1
+        showHelp = false
         playerX = (width - playerWidth) * 0.5
         playerY = height - 70
         shootCooldown = 0
@@ -608,6 +610,17 @@ Window {
                 return
             }
 
+            if (event.key === Qt.Key_H) {
+                root.showHelp = !root.showHelp
+                if (root.showHelp) {
+                    root.leftPressed = false
+                    root.rightPressed = false
+                    root.shootPressed = false
+                }
+                event.accepted = true
+                return
+            }
+
             if (event.key === Qt.Key_M) {
                 root.musicEnabled = !root.musicEnabled
                 event.accepted = true
@@ -622,6 +635,11 @@ Window {
 
             if (event.key === Qt.Key_Equal || event.key === Qt.Key_Plus) {
                 root.changeMusicVolume(0.05)
+                event.accepted = true
+                return
+            }
+
+            if (root.showHelp) {
                 event.accepted = true
                 return
             }
@@ -690,10 +708,10 @@ Window {
             root.lastFrameMs = nowMs
             dt = Math.min(dt, 0.25)
             root.renderClock += dt
-            if (root.gameState === root.stateRunning) {
+            if (root.gameState === root.stateRunning && !root.showHelp) {
                 root.stepSimulation(dt)
             }
-            if (root.gameState === root.stateRunning) {
+            if (root.gameState === root.stateRunning && !root.showHelp) {
                 root.invaderAnimClock += dt
                 if (root.invaderAnimClock >= 0.30) {
                     root.invaderAnimClock = 0
@@ -807,7 +825,8 @@ Window {
                 ctx.font = "24px monospace"
                 ctx.fillText("Press ENTER to start", width * 0.5, height * 0.52)
                 ctx.fillText("High Score: " + root.highScore, width * 0.5, height * 0.58)
-                ctx.fillText("Move: A/D or Left/Right  Fire: Space", width * 0.5, height * 0.64)
+                ctx.fillText("Press H for help", width * 0.5, height * 0.64)
+                ctx.fillText("Move: A/D or Left/Right  Fire: Space", width * 0.5, height * 0.70)
             } else if (root.gameState === root.stateWaveCleared) {
                 ctx.fillStyle = "#b5ffb5"
                 ctx.font = "bold 46px monospace"
@@ -816,7 +835,7 @@ Window {
                 ctx.font = "24px monospace"
                 ctx.fillText("Press ENTER for next wave", width * 0.5, height * 0.55)
             } else if (root.gameState === root.stateGameOver) {
-                ctx.fillStyle = "rgba(8, 14, 28, 0.72)"
+                ctx.fillStyle = "rgba(8, 14, 28, 0.80)"
                 ctx.fillRect(width * 0.5 - 260, height * 0.46 - 70, 520, 190)
                 ctx.strokeStyle = "rgba(193, 214, 255, 0.45)"
                 ctx.lineWidth = 2
@@ -836,6 +855,29 @@ Window {
                 ctx.fillText("PAUSED", width * 0.5, height * 0.46)
                 ctx.font = "24px monospace"
                 ctx.fillText("Press P to resume", width * 0.5, height * 0.55)
+            }
+
+            if (root.showHelp) {
+                ctx.fillStyle = "rgba(8, 14, 28, 0.90)"
+                ctx.fillRect(width * 0.5 - 310, height * 0.5 - 210, 620, 420)
+                ctx.strokeStyle = "rgba(193, 214, 255, 0.45)"
+                ctx.lineWidth = 2
+                ctx.strokeRect(width * 0.5 - 310, height * 0.5 - 210, 620, 420)
+
+                ctx.fillStyle = "#cfe2ff"
+                ctx.font = "bold 42px monospace"
+                ctx.fillText("HELP", width * 0.5, height * 0.5 - 155)
+
+                ctx.fillStyle = "#dce8ff"
+                ctx.font = "22px monospace"
+                ctx.fillText("Enter  - Start / Next Wave / Restart", width * 0.5, height * 0.5 - 95)
+                ctx.fillText("A / Left Arrow   - Move Left", width * 0.5, height * 0.5 - 55)
+                ctx.fillText("D / Right Arrow  - Move Right", width * 0.5, height * 0.5 - 15)
+                ctx.fillText("Space - Fire", width * 0.5, height * 0.5 + 25)
+                ctx.fillText("P - Pause / Resume", width * 0.5, height * 0.5 + 65)
+                ctx.fillText("M - Music Mute / Unmute", width * 0.5, height * 0.5 + 105)
+                ctx.fillText("- / = - Music Volume Down / Up", width * 0.5, height * 0.5 + 145)
+                ctx.fillText("H - Close Help", width * 0.5, height * 0.5 + 185)
             }
             ctx.textAlign = "start"
         }
