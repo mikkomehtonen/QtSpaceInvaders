@@ -33,6 +33,10 @@ Window {
     property real alienDirection: 1
     property real alienDrop: 22
     property real enemyShootClock: 0
+    property real renderClock: 0
+    property real invaderAnimClock: 0
+    property int invaderAnimFrame: 0
+    property real lastFrameMs: 0
 
     property bool leftPressed: false
     property bool rightPressed: false
@@ -43,6 +47,82 @@ Window {
     property var enemyBullets: []
     property var bunkers: []
     property var stars: []
+    property var playerSprite: [
+        "00001111110000",
+        "00011111111000",
+        "00111111111100",
+        "01111011011110",
+        "11111111111111",
+        "00111100111100"
+    ]
+    property var invaderSprites: [
+        {
+            a: [
+                "001100001100",
+                "000111111000",
+                "001111111100",
+                "011011110110",
+                "111111111111",
+                "101111111101",
+                "101000001101",
+                "000110011000"
+            ],
+            b: [
+                "001100001100",
+                "100111111001",
+                "111111111111",
+                "110111111011",
+                "111111111111",
+                "001111111100",
+                "011000000110",
+                "110000000011"
+            ]
+        },
+        {
+            a: [
+                "000011110000",
+                "001111111100",
+                "011101101110",
+                "111111111111",
+                "110111111011",
+                "110000000011",
+                "001100001100",
+                "011000000110"
+            ],
+            b: [
+                "000011110000",
+                "001111111100",
+                "011101101110",
+                "111111111111",
+                "110111111011",
+                "001100001100",
+                "011000000110",
+                "110000000011"
+            ]
+        },
+        {
+            a: [
+                "000111111000",
+                "001111111100",
+                "011011110110",
+                "111111111111",
+                "001101101100",
+                "011000000110",
+                "110000000011",
+                "011000000110"
+            ],
+            b: [
+                "000111111000",
+                "001111111100",
+                "011011110110",
+                "111111111111",
+                "001101101100",
+                "000110011000",
+                "001100001100",
+                "011000000110"
+            ]
+        }
+    ]
 
     function randRange(min, max) {
         return min + Math.random() * (max - min)
@@ -54,15 +134,42 @@ Window {
 
     function createStars() {
         var s = []
-        for (var i = 0; i < 100; ++i) {
+        for (var i = 0; i < 50; ++i) {
             s.push({
                 x: randRange(0, width),
                 y: randRange(0, height),
                 r: randRange(0.6, 1.8),
-                a: randRange(0.25, 0.8)
+                a: randRange(0.25, 0.8),
+                phase: randRange(0, Math.PI * 2)
             })
         }
         stars = s
+    }
+
+    function drawPixelSprite(ctx, sprite, x, y, scale, color, glow) {
+        ctx.fillStyle = color
+
+        for (var sy = 0; sy < sprite.length; ++sy) {
+            for (var sx = 0; sx < sprite[sy].length; ++sx) {
+                if (sprite[sy][sx] === "1")
+                    ctx.fillRect(x + sx * scale, y + sy * scale, scale, scale)
+            }
+        }
+    }
+
+    function drawPlayer(ctx) {
+        drawPixelSprite(ctx, playerSprite, playerX, playerY, 4, "#8ee9ff", "")
+    }
+
+    function drawAlien(ctx, alien) {
+        var type = alien.row < 2 ? 0 : (alien.row < 4 ? 1 : 2)
+        var spriteSet = invaderSprites[type]
+        var sprite = invaderAnimFrame === 0 ? spriteSet.a : spriteSet.b
+        var bodyColor = type === 0 ? "#ff8f8f" : (type === 1 ? "#ffd67e" : "#98ff95")
+        var glowColor = type === 0 ? "rgba(255, 121, 121, 0.45)"
+                                   : (type === 1 ? "rgba(255, 209, 112, 0.45)"
+                                                 : "rgba(138, 255, 132, 0.45)")
+        drawPixelSprite(ctx, sprite, alien.x, alien.y + 1, 3, bodyColor, "")
     }
 
     function spawnWave() {
@@ -410,8 +517,20 @@ Window {
         repeat: true
         running: true
         onTriggered: {
+            var nowMs = Date.now()
+            var dt = lastFrameMs > 0 ? (nowMs - lastFrameMs) / 1000.0 : interval / 1000.0
+            lastFrameMs = nowMs
+            dt = Math.min(dt, 0.25)
+            root.renderClock += dt
             if (root.gameState === root.stateRunning)
-                root.stepSimulation(interval / 1000.0)
+                root.stepSimulation(dt)
+            if (root.gameState === root.stateRunning) {
+                root.invaderAnimClock += dt
+                if (root.invaderAnimClock >= 0.30) {
+                    root.invaderAnimClock = 0
+                    root.invaderAnimFrame = 1 - root.invaderAnimFrame
+                }
+            }
             gameCanvas.requestPaint()
         }
     }
@@ -419,18 +538,36 @@ Window {
     Canvas {
         id: gameCanvas
         anchors.fill: parent
-        antialiasing: true
+        antialiasing: false
+        renderTarget: Canvas.FramebufferObject
+        renderStrategy: Canvas.Cooperative
 
         onPaint: {
             var ctx = getContext("2d")
             ctx.reset()
 
-            ctx.fillStyle = "#06070a"
+            var bg = ctx.createLinearGradient(0, 0, 0, height)
+            bg.addColorStop(0, "#060710")
+            bg.addColorStop(0.55, "#090c18")
+            bg.addColorStop(1, "#020306")
+            ctx.fillStyle = bg
             ctx.fillRect(0, 0, width, height)
+
+            ctx.globalAlpha = 0.22
+            ctx.fillStyle = "#203f7f"
+            ctx.beginPath()
+            ctx.arc(width * 0.18, height * 0.2, 170, 0, Math.PI * 2)
+            ctx.fill()
+            ctx.fillStyle = "#27436b"
+            ctx.beginPath()
+            ctx.arc(width * 0.82, height * 0.35, 220, 0, Math.PI * 2)
+            ctx.fill()
+            ctx.globalAlpha = 1
 
             for (var s = 0; s < stars.length; ++s) {
                 var star = stars[s]
-                ctx.globalAlpha = star.a
+                var twinkle = 0.55 + 0.45 * Math.sin(renderClock * 1.7 + star.phase)
+                ctx.globalAlpha = star.a * twinkle
                 ctx.fillStyle = "#e9f2ff"
                 ctx.beginPath()
                 ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2)
@@ -445,40 +582,48 @@ Window {
                 var bunkerColor = block.hp === 3 ? "#5ad65a" : (block.hp === 2 ? "#3fb03f" : "#2a7d2a")
                 ctx.fillStyle = bunkerColor
                 ctx.fillRect(block.x, block.y, block.w, block.h)
+                ctx.fillStyle = "rgba(255, 255, 255, 0.12)"
+                ctx.fillRect(block.x, block.y, block.w, 2)
             }
 
-            ctx.fillStyle = "#7dd3ff"
-            ctx.fillRect(playerX, playerY, playerWidth, playerHeight)
-            ctx.fillRect(playerX + playerWidth * 0.46, playerY - 10, playerWidth * 0.08, 10)
+            drawPlayer(ctx)
 
             for (var i = 0; i < aliens.length; ++i) {
                 var alien = aliens[i]
                 if (!alien.alive)
                     continue
-
-                ctx.fillStyle = alien.row < 2 ? "#ff7a7a" : (alien.row < 4 ? "#ffd166" : "#7bff7b")
-                ctx.fillRect(alien.x, alien.y, alien.w, alien.h)
-                ctx.fillRect(alien.x - 4, alien.y + 8, 4, 8)
-                ctx.fillRect(alien.x + alien.w, alien.y + 8, 4, 8)
+                drawAlien(ctx, alien)
             }
 
-            ctx.fillStyle = "#f4f8ff"
             for (var p = 0; p < playerBullets.length; ++p) {
                 var pb = playerBullets[p]
+                ctx.fillStyle = "#f4f8ff"
                 ctx.fillRect(pb.x, pb.y, pb.w, pb.h)
+                ctx.fillStyle = "rgba(170, 220, 255, 0.5)"
+                ctx.fillRect(pb.x, pb.y + pb.h, pb.w, 6)
             }
 
-            ctx.fillStyle = "#ff8b8b"
             for (var e = 0; e < enemyBullets.length; ++e) {
                 var eb = enemyBullets[e]
+                ctx.fillStyle = "#ff9090"
                 ctx.fillRect(eb.x, eb.y, eb.w, eb.h)
+                ctx.fillStyle = "rgba(255, 109, 109, 0.4)"
+                ctx.fillRect(eb.x, eb.y - 5, eb.w, 5)
             }
 
+            ctx.fillStyle = "rgba(10, 16, 36, 0.7)"
+            ctx.fillRect(0, 0, width, 52)
             ctx.fillStyle = "#dce8ff"
             ctx.font = "bold 24px monospace"
             ctx.fillText("SCORE  " + score, 22, 36)
             ctx.fillText("LIVES  " + lives, width - 180, 36)
             ctx.fillText("WAVE  " + level, width * 0.5 - 70, 36)
+
+            ctx.globalAlpha = 0.035
+            ctx.fillStyle = "#c7d8ff"
+            for (var y = 64; y < height; y += 8)
+                ctx.fillRect(0, y, width, 1)
+            ctx.globalAlpha = 1
 
             ctx.textAlign = "center"
             if (gameState === stateStart) {
