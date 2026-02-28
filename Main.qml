@@ -1,4 +1,5 @@
 import QtQuick
+import QtMultimedia
 
 Window {
     id: root
@@ -37,6 +38,8 @@ Window {
     property int maxEnemyBullets: 2
     property int currentWaveRows: 5
     property int currentWaveCols: 11
+    property bool soundsEnabled: true
+    property real sfxVolume: 0.55
     property real renderClock: 0
     property real invaderAnimClock: 0
     property int invaderAnimFrame: 0
@@ -170,10 +173,24 @@ Window {
         var spriteSet = invaderSprites[type]
         var sprite = invaderAnimFrame === 0 ? spriteSet.a : spriteSet.b
         var bodyColor = type === 0 ? "#ff8f8f" : (type === 1 ? "#ffd67e" : "#98ff95")
-        var glowColor = type === 0 ? "rgba(255, 121, 121, 0.45)"
-                                   : (type === 1 ? "rgba(255, 209, 112, 0.45)"
-                                                 : "rgba(138, 255, 132, 0.45)")
         drawPixelSprite(ctx, sprite, alien.x, alien.y + 1, 3, bodyColor, "")
+    }
+
+    function playSfx(effect) {
+        if (!soundsEnabled || !effect)
+            return
+        effect.stop()
+        effect.play()
+    }
+
+    function setGameState(nextState) {
+        if (gameState === nextState)
+            return
+        gameState = nextState
+        if (nextState === stateWaveCleared)
+            playSfx(sfxWaveClear)
+        else if (nextState === stateGameOver)
+            playSfx(sfxGameOver)
     }
 
     function spawnWave() {
@@ -265,7 +282,7 @@ Window {
         createBunkers()
         updateDifficultyForLevel()
         spawnWave()
-        gameState = stateRunning
+        setGameState(stateRunning)
     }
 
     function nextWave() {
@@ -273,7 +290,7 @@ Window {
         createBunkers()
         updateDifficultyForLevel()
         spawnWave()
-        gameState = stateRunning
+        setGameState(stateRunning)
     }
 
     function aabb(ax, ay, aw, ah, bx, by, bw, bh) {
@@ -312,7 +329,7 @@ Window {
         }
 
         if (aliveCount === 0) {
-            gameState = stateWaveCleared
+            setGameState(stateWaveCleared)
             return
         }
 
@@ -334,7 +351,7 @@ Window {
 
         for (var n = 0; n < aliens.length; ++n) {
             if (aliens[n].alive && aliens[n].y + aliens[n].h >= playerY - 6) {
-                gameState = stateGameOver
+                setGameState(stateGameOver)
                 return
             }
         }
@@ -400,6 +417,7 @@ Window {
             dead: false
         })
         shootCooldown = shootDelay
+        playSfx(sfxShoot)
     }
 
     function handleCollisions() {
@@ -416,6 +434,7 @@ Window {
                     alien.alive = false
                     pb.dead = true
                     score += (6 - alien.row) * 10
+                    playSfx(sfxAlienHit)
                     break
                 }
             }
@@ -443,8 +462,9 @@ Window {
             if (aabb(eb.x, eb.y, eb.w, eb.h, playerX, playerY, playerWidth, playerHeight)) {
                 eb.dead = true
                 lives -= 1
+                playSfx(sfxPlayerHit)
                 if (lives <= 0) {
-                    gameState = stateGameOver
+                    setGameState(stateGameOver)
                 } else {
                     playerX = (width - playerWidth) * 0.5
                 }
@@ -678,6 +698,36 @@ Window {
             }
             ctx.textAlign = "start"
         }
+    }
+
+    SoundEffect {
+        id: sfxShoot
+        source: "qrc:/qt/qml/QtSpaceInvaders/assets/sfx/shoot.wav"
+        volume: root.sfxVolume * 0.55
+    }
+
+    SoundEffect {
+        id: sfxAlienHit
+        source: "qrc:/qt/qml/QtSpaceInvaders/assets/sfx/alien_hit.wav"
+        volume: root.sfxVolume * 0.5
+    }
+
+    SoundEffect {
+        id: sfxPlayerHit
+        source: "qrc:/qt/qml/QtSpaceInvaders/assets/sfx/player_hit.wav"
+        volume: root.sfxVolume * 0.65
+    }
+
+    SoundEffect {
+        id: sfxWaveClear
+        source: "qrc:/qt/qml/QtSpaceInvaders/assets/sfx/wave_clear.wav"
+        volume: root.sfxVolume * 0.55
+    }
+
+    SoundEffect {
+        id: sfxGameOver
+        source: "qrc:/qt/qml/QtSpaceInvaders/assets/sfx/game_over.wav"
+        volume: root.sfxVolume * 0.65
     }
 
     Component.onCompleted: {
