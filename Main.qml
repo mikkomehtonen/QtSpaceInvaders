@@ -719,6 +719,13 @@ Window {
                 return
             }
 
+            if (event.key === Qt.Key_N) {
+                bgmPlayer.nextSong()
+                event.accepted = true
+                return
+            }
+
+
             if (event.key === Qt.Key_Minus || event.key === Qt.Key_Underscore) {
                 root.changeMusicVolume(-0.05)
                 event.accepted = true
@@ -1131,18 +1138,25 @@ Window {
     MediaPlayer {
         id: bgmPlayer
 
+        function nextSong() {
+            playlistIndex = (playlistIndex + 1) % playlist.length
+            pendingPlay = true
+        }
+
         readonly property var playlist: [
             "qrc:/qt/qml/QtSpaceInvaders/assets/music/orbital_siege_loop.mp3",
             "qrc:/qt/qml/QtSpaceInvaders/assets/music/galactic_onslaught.mp3"
         ]
         property int playlistIndex: 0
+        property bool pendingPlay: false
 
         source: playlist[playlistIndex]
         audioOutput: bgmOutput
         onMediaStatusChanged: {
             if (mediaStatus === MediaPlayer.EndOfMedia) {
-                playlistIndex = (playlistIndex + 1) % playlist.length
-                source = playlist[playlistIndex]
+                nextSong()
+            } else if (pendingPlay && mediaStatus === MediaPlayer.LoadedMedia) {
+                pendingPlay = false
                 play()
             }
         }
