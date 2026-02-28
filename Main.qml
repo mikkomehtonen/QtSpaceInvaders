@@ -206,6 +206,12 @@ Window {
         }
     }
 
+    function changeMusicVolume(delta) {
+        musicVolume = clamp(musicVolume + delta, 0.0, 1.0)
+        if (musicVolume > 0 && !musicEnabled)
+            musicEnabled = true
+    }
+
     function spawnWave() {
         var rows = currentWaveRows
         var cols = currentWaveCols
@@ -539,6 +545,24 @@ Window {
         Keys.onPressed: function(event) {
             if (event.isAutoRepeat)
                 return
+
+            if (event.key === Qt.Key_M) {
+                musicEnabled = !musicEnabled
+                event.accepted = true
+                return
+            }
+
+            if (event.key === Qt.Key_Minus || event.key === Qt.Key_Underscore) {
+                changeMusicVolume(-0.05)
+                event.accepted = true
+                return
+            }
+
+            if (event.key === Qt.Key_Equal || event.key === Qt.Key_Plus) {
+                changeMusicVolume(0.05)
+                event.accepted = true
+                return
+            }
 
             if (event.key === Qt.Key_P) {
                 if (gameState === stateRunning) {
