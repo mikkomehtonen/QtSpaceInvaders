@@ -773,6 +773,11 @@ Window {
                 ctx.font = "24px monospace"
                 ctx.fillText("Press ENTER for next wave", width * 0.5, height * 0.55)
             } else if (gameState === stateGameOver) {
+                ctx.fillStyle = "rgba(8, 14, 28, 0.72)"
+                ctx.fillRect(width * 0.5 - 260, height * 0.46 - 70, 520, 190)
+                ctx.strokeStyle = "rgba(193, 214, 255, 0.45)"
+                ctx.lineWidth = 2
+                ctx.strokeRect(width * 0.5 - 260, height * 0.46 - 70, 520, 190)
                 ctx.fillStyle = "#ffb0b0"
                 ctx.font = "bold 46px monospace"
                 ctx.fillText("GAME OVER", width * 0.5, height * 0.46)
