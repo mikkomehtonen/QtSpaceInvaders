@@ -14,6 +14,7 @@ qt_add_executable(appQtSpaceInvaders
 
 qt_add_qml_module(appQtSpaceInvaders
     URI QtSpaceInvaders
+    VERSION 1.0
     QML_FILES
         Main.qml
     RESOURCES

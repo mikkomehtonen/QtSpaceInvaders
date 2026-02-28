@@ -29,6 +29,20 @@ cmake -S . -B build
 cmake --build build
 ```
 
+## Flatpak Bundle
+
+Build and install locally:
+
+```bash
+flatpak-builder --disable-rofiles-fuse --user --install --force-clean build-release com.mehtonen.QtSpaceInvaders.json
+```
+
+Create a distributable bundle:
+
+```bash
+flatpak build-bundle ~/.local/share/flatpak/repo QtSpaceInvaders.flatpak com.mehtonen.QtSpaceInvaders
+```
+
 ## Run
 
 ```bash

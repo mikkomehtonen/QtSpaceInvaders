@@ -1,0 +1,22 @@
+{
+  "app-id": "com.mehtonen.QtSpaceInvaders",
+  "runtime": "org.kde.Platform",
+  "runtime-version": "6.9",
+  "sdk": "org.kde.Sdk",
+  "command": "appQtSpaceInvaders",
+  "finish-args": [
+    "--socket=wayland",
+    "--socket=fallback-x11",
+    "--device=dri",
+    "--socket=pulseaudio"
+  ],
+  "modules": [
+    {
+      "name": "QtSpaceInvaders",
+      "buildsystem": "cmake",
+      "builddir": true,
+      "config-opts": ["-DCMAKE_BUILD_TYPE=Release"],
+      "sources": [{ "type": "dir", "path": "." }]
+    }
+  ]
+}
