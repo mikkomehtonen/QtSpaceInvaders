@@ -1,5 +1,6 @@
 import QtQuick
 import QtMultimedia
+import QtQuick.LocalStorage
 
 Window {
     id: root
@@ -17,6 +18,7 @@ Window {
 
     property int gameState: stateStart
     property int score: 0
+    property int highScore: 0
     property int lives: 3
     property int level: 1
 
@@ -194,6 +196,34 @@ Window {
             playSfx(sfxWaveClear)
         else if (nextState === stateGameOver)
             playSfx(sfxGameOver)
+    }
+
+    function loadHighScore() {
+        var db = LocalStorage.openDatabaseSync("QtSpaceInvadersDB", "1.0", "Space Invaders Data", 100000)
+        db.transaction(function(tx) {
+            tx.executeSql("CREATE TABLE IF NOT EXISTS highscores(name TEXT UNIQUE, value INTEGER)")
+            var rs = tx.executeSql("SELECT value FROM highscores WHERE name = ?", ["highScore"])
+            if (rs.rows.length > 0) {
+                highScore = rs.rows.item(0).value
+            } else {
+                tx.executeSql("INSERT INTO highscores(name, value) VALUES(?, ?)", ["highScore", 0])
+                highScore = 0
+            }
+        })
+    }
+
+    function saveHighScore() {
+        var db = LocalStorage.openDatabaseSync("QtSpaceInvadersDB", "1.0", "Space Invaders Data", 100000)
+        db.transaction(function(tx) {
+            tx.executeSql("INSERT OR REPLACE INTO highscores(name, value) VALUES(?, ?)", ["highScore", highScore])
+        })
+    }
+
+    function updateHighScoreIfNeeded() {
+        if (score > highScore) {
+            highScore = score
+            saveHighScore()
+        }
     }
 
     function updateMusicState() {
@@ -453,6 +483,7 @@ Window {
                     alien.alive = false
                     pb.dead = true
                     score += (6 - alien.row) * 10
+                    updateHighScoreIfNeeded()
                     playSfx(sfxAlienHit)
                     break
                 }
@@ -710,16 +741,18 @@ Window {
             }
 
             ctx.fillStyle = "rgba(10, 16, 36, 0.7)"
-            ctx.fillRect(0, 0, width, 52)
+            ctx.fillRect(0, 0, width, 76)
             ctx.fillStyle = "#dce8ff"
-            ctx.font = "bold 24px monospace"
-            ctx.fillText("SCORE  " + score, 22, 36)
-            ctx.fillText("LIVES  " + lives, width - 180, 36)
-            ctx.fillText("WAVE  " + level, width * 0.5 - 70, 36)
+            ctx.font = "bold 22px monospace"
+            ctx.fillText("SCORE  " + score, 22, 32)
+            ctx.fillText("HIGH  " + highScore, width * 0.5 - 95, 32)
+            ctx.fillText("LIVES  " + lives, width - 180, 32)
+            ctx.font = "bold 20px monospace"
+            ctx.fillText("WAVE  " + level, width * 0.5 - 60, 62)
 
             ctx.globalAlpha = 0.035
             ctx.fillStyle = "#c7d8ff"
-            for (var y = 64; y < height; y += 8)
+            for (var y = 84; y < height; y += 8)
                 ctx.fillRect(0, y, width, 1)
             ctx.globalAlpha = 1
 
@@ -730,7 +763,8 @@ Window {
                 ctx.fillText("SPACE INVADERS", width * 0.5, height * 0.42)
                 ctx.font = "24px monospace"
                 ctx.fillText("Press ENTER to start", width * 0.5, height * 0.52)
-                ctx.fillText("Move: A/D or Left/Right  Fire: Space", width * 0.5, height * 0.58)
+                ctx.fillText("High Score: " + highScore, width * 0.5, height * 0.58)
+                ctx.fillText("Move: A/D or Left/Right  Fire: Space", width * 0.5, height * 0.64)
             } else if (gameState === stateWaveCleared) {
                 ctx.fillStyle = "#b5ffb5"
                 ctx.font = "bold 46px monospace"
@@ -745,6 +779,7 @@ Window {
                 ctx.fillStyle = "#dce8ff"
                 ctx.font = "24px monospace"
                 ctx.fillText("Press ENTER to restart", width * 0.5, height * 0.55)
+                ctx.fillText("High Score: " + highScore, width * 0.5, height * 0.61)
             } else if (gameState === statePaused) {
                 ctx.fillStyle = "rgba(5, 10, 20, 0.58)"
                 ctx.fillRect(0, 0, width, height)
@@ -814,6 +849,7 @@ Window {
     }
 
     Component.onCompleted: {
+        loadHighScore()
         createStars()
         updateMusicState()
         gameCanvas.requestPaint()
