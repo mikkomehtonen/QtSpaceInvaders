@@ -62,6 +62,7 @@ Window {
     property var enemyBullets: []
     property var bunkers: []
     property var stars: []
+    property var hitParticles: []
     property var playerSprite: [
         "00001111110000",
         "00011111111000",
@@ -185,6 +186,15 @@ Window {
         drawPixelSprite(ctx, sprite, alien.x, alien.y + 1, 3, bodyColor, "")
     }
 
+    function alienColorForRow(row) {
+        if (row < 2) {
+            return "#ff8f8f"
+        } else if (row < 4) {
+            return "#ffd67e"
+        }
+        return "#98ff95"
+    }
+
     function playSfx(effect) {
         if (!soundsEnabled || !effect) {
             return
@@ -285,6 +295,7 @@ Window {
         aliens = wave
         playerBullets = []
         enemyBullets = []
+        hitParticles = []
         alienDirection = 1
         enemyShootClock = 0
     }
@@ -496,6 +507,39 @@ Window {
         playSfx(sfxShoot)
     }
 
+    function spawnAlienHitParticles(x, y, color) {
+        for (var i = 0; i < 14; ++i) {
+            var angle = Math.random() * Math.PI * 2
+            var speed = 70 + Math.random() * 140
+            var life = 0.36 + Math.random() * 0.24
+            hitParticles.push({
+                x: x,
+                y: y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                life: life,
+                maxLife: life,
+                size: 2 + Math.random() * 2.5,
+                color: color
+            })
+        }
+    }
+
+    function updateHitParticles(dt) {
+        for (var i = hitParticles.length - 1; i >= 0; --i) {
+            var p = hitParticles[i]
+            p.life -= dt
+            if (p.life <= 0) {
+                hitParticles.splice(i, 1)
+                continue
+            }
+            p.x += p.vx * dt
+            p.y += p.vy * dt
+            p.vx *= 0.96
+            p.vy = p.vy * 0.96 + 140 * dt
+        }
+    }
+
     function handleCollisions() {
         for (var i = 0; i < playerBullets.length; ++i) {
             var pb = playerBullets[i]
@@ -511,6 +555,7 @@ Window {
                 if (aabb(pb.x, pb.y, pb.w, pb.h, alien.x, alien.y, alien.w, alien.h)) {
                     alien.alive = false
                     pb.dead = true
+                    spawnAlienHitParticles(alien.x + alien.w * 0.5, alien.y + alien.h * 0.5, alienColorForRow(alien.row))
                     score += (6 - alien.row) * 10
                     updateHighScoreIfNeeded()
                     playSfx(sfxAlienHit)
@@ -590,6 +635,7 @@ Window {
     }
 
     function stepSimulation(dt) {
+        updateHitParticles(dt)
         shootCooldown = Math.max(0, shootCooldown - dt)
 
         if (leftPressed) {
@@ -824,6 +870,15 @@ Window {
                 ctx.fillStyle = "rgba(255, 109, 109, 0.4)"
                 ctx.fillRect(eb.x, eb.y - 5, eb.w, 5)
             }
+
+            for (var hp = 0; hp < root.hitParticles.length; ++hp) {
+                var part = root.hitParticles[hp]
+                var lifeRatio = part.life / part.maxLife
+                ctx.globalAlpha = Math.max(0, Math.min(1, lifeRatio))
+                ctx.fillStyle = part.color
+                ctx.fillRect(part.x, part.y, part.size, part.size)
+            }
+            ctx.globalAlpha = 1
 
             ctx.fillStyle = "rgba(10, 16, 36, 0.7)"
             ctx.fillRect(0, 0, width, 76)
