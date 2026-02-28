@@ -33,6 +33,10 @@ Window {
     property real alienDirection: 1
     property real alienDrop: 22
     property real enemyShootClock: 0
+    property real enemyShootDelay: 0.9
+    property int maxEnemyBullets: 2
+    property int currentWaveRows: 5
+    property int currentWaveCols: 11
     property real renderClock: 0
     property real invaderAnimClock: 0
     property int invaderAnimFrame: 0
@@ -173,8 +177,8 @@ Window {
     }
 
     function spawnWave() {
-        var rows = 5
-        var cols = 11
+        var rows = currentWaveRows
+        var cols = currentWaveCols
         var spacingX = 54
         var spacingY = 42
         var alienW = 36
@@ -201,8 +205,18 @@ Window {
         playerBullets = []
         enemyBullets = []
         alienDirection = 1
-        alienSpeed = 45 + (level - 1) * 8
         enemyShootClock = 0
+    }
+
+    function updateDifficultyForLevel() {
+        var l = Math.max(1, level)
+        currentWaveRows = Math.min(7, 5 + Math.floor((l - 1) / 2))
+        currentWaveCols = 11
+        alienSpeed = 45 + (l - 1) * 14
+        alienDrop = 22 + Math.min(14, (l - 1) * 2)
+        enemyShotSpeed = 250 + (l - 1) * 28
+        enemyShootDelay = Math.max(0.16, 0.90 - (l - 1) * 0.08)
+        maxEnemyBullets = Math.min(8, 2 + Math.floor((l - 1) / 2))
     }
 
     function createBunkers() {
@@ -249,6 +263,7 @@ Window {
         shootCooldown = 0
         createStars()
         createBunkers()
+        updateDifficultyForLevel()
         spawnWave()
         gameState = stateRunning
     }
@@ -256,6 +271,7 @@ Window {
     function nextWave() {
         level += 1
         createBunkers()
+        updateDifficultyForLevel()
         spawnWave()
         gameState = stateRunning
     }
@@ -326,8 +342,7 @@ Window {
 
     function tryEnemyShoot(dt) {
         enemyShootClock += dt
-        var delay = Math.max(0.2, 0.9 - level * 0.06)
-        if (enemyShootClock < delay)
+        if (enemyBullets.length >= maxEnemyBullets || enemyShootClock < enemyShootDelay)
             return
 
         enemyShootClock = 0
@@ -358,6 +373,19 @@ Window {
             h: 14,
             dead: false
         })
+
+        // Higher levels occasionally fire a second shot to ramp pressure.
+        var bonusShotChance = Math.min(0.45, (level - 1) * 0.06)
+        if (enemyBullets.length < maxEnemyBullets && Math.random() < bonusShotChance) {
+            var shooter2 = shooters[Math.floor(Math.random() * shooters.length)]
+            enemyBullets.push({
+                x: shooter2.x + shooter2.w * 0.5 - 2,
+                y: shooter2.y + shooter2.h,
+                w: 4,
+                h: 14,
+                dead: false
+            })
+        }
     }
 
     function handlePlayerFire() {
