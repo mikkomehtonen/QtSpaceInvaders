@@ -40,6 +40,8 @@ Window {
     property int currentWaveCols: 11
     property bool soundsEnabled: true
     property real sfxVolume: 0.55
+    property bool musicEnabled: true
+    property real musicVolume: 0.26
     property real renderClock: 0
     property real invaderAnimClock: 0
     property int invaderAnimFrame: 0
@@ -191,6 +193,16 @@ Window {
             playSfx(sfxWaveClear)
         else if (nextState === stateGameOver)
             playSfx(sfxGameOver)
+    }
+
+    function updateMusicState() {
+        if (musicEnabled) {
+            if (bgmPlayer.playbackState !== MediaPlayer.PlayingState)
+                bgmPlayer.play()
+        } else {
+            if (bgmPlayer.playbackState !== MediaPlayer.StoppedState)
+                bgmPlayer.stop()
+        }
     }
 
     function spawnWave() {
@@ -703,35 +715,63 @@ Window {
     SoundEffect {
         id: sfxShoot
         source: "qrc:/qt/qml/QtSpaceInvaders/assets/sfx/shoot.wav"
-        volume: root.sfxVolume * 0.55
+        volume: root.sfxVolume
     }
 
     SoundEffect {
         id: sfxAlienHit
         source: "qrc:/qt/qml/QtSpaceInvaders/assets/sfx/alien_hit.wav"
-        volume: root.sfxVolume * 0.5
+        volume: root.sfxVolume
     }
 
     SoundEffect {
         id: sfxPlayerHit
         source: "qrc:/qt/qml/QtSpaceInvaders/assets/sfx/player_hit.wav"
-        volume: root.sfxVolume * 0.65
+        volume: root.sfxVolume
     }
 
     SoundEffect {
         id: sfxWaveClear
         source: "qrc:/qt/qml/QtSpaceInvaders/assets/sfx/wave_clear.wav"
-        volume: root.sfxVolume * 0.55
+        volume: root.sfxVolume
     }
 
     SoundEffect {
         id: sfxGameOver
         source: "qrc:/qt/qml/QtSpaceInvaders/assets/sfx/game_over.wav"
-        volume: root.sfxVolume * 0.65
+        volume: root.sfxVolume
+    }
+
+    AudioOutput {
+        id: bgmOutput
+        volume: root.musicVolume
+    }
+
+    MediaPlayer {
+        id: bgmPlayer
+
+        readonly property var playlist: [
+            "qrc:/qt/qml/QtSpaceInvaders/assets/music/orbital_siege_loop.mp3",
+            "qrc:/qt/qml/QtSpaceInvaders/assets/music/galactic_onslaught.mp3"
+        ]
+        property int playlistIndex: 0
+
+        source: playlist[playlistIndex]
+        audioOutput: bgmOutput
+        onMediaStatusChanged: {
+            if (mediaStatus === MediaPlayer.EndOfMedia) {
+                playlistIndex = (playlistIndex + 1) % playlist.length
+                source = playlist[playlistIndex]
+                play()
+            }
+        }
     }
 
     Component.onCompleted: {
         createStars()
+        updateMusicState()
         gameCanvas.requestPaint()
     }
+
+    onMusicEnabledChanged: updateMusicState()
 }
