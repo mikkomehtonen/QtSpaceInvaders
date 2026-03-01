@@ -686,7 +686,7 @@ Window {
                 eb.dead = true
                 lives -= 1
                 // Add screen shake effect when player is hit
-                screenShakeIntensity = 12
+                screenShakeIntensity = 20
                 screenShakeDuration = 0.3
 
                 playSfx(sfxPlayerHit)
@@ -1176,7 +1176,7 @@ Window {
     SoundEffect {
         id: sfxPlayerHit
         source: "qrc:/qt/qml/QtSpaceInvaders/assets/sfx/player_hit.wav"
-        volume: root.sfxVolume
+        volume: root.sfxVolume * 1.2
     }
 
     SoundEffect {
