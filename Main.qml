@@ -622,18 +622,18 @@ Window {
     }
 
     function updateHitParticles(dt) {
-        for (var i = hitParticles.length - 1; i >= 0; --i) {
+        var out = []
+        for (var i = 0; i < hitParticles.length; ++i) {
             var p = hitParticles[i]
             p.life -= dt
-            if (p.life <= 0) {
-                hitParticles.splice(i, 1)
-                continue
-            }
+            if (p.life <= 0) continue
             p.x += p.vx * dt
             p.y += p.vy * dt
             p.vx *= 0.96
             p.vy = p.vy * 0.96 + 140 * dt
+            out.push(p)
         }
+        hitParticles = out
     }
 
     function handleCollisions() {
@@ -721,9 +721,10 @@ Window {
     }
 
     function handleAlienBunkerCollisions(dt) {
+        if (!dt || !isFinite(dt)) return
+
         // How fast aliens destroy the bunkers (hp/second)
         var crushRate = 5.0
-
         for (var a = 0; a < aliens.length; ++a) {
             var alien = aliens[a]
             if (!alien.alive) continue
@@ -733,7 +734,6 @@ Window {
                 if (block.hp <= 0) continue
 
                 if (aabb(alien.x, alien.y, alien.w, alien.h, block.x, block.y, block.w, block.h)) {
-                    // dt-pohjainen kulutus, mutta hp on int → käytä pientä kertymää
                     block._crush = (block._crush || 0) + crushRate * dt
                     if (block._crush >= 1) {
                         var dmg = Math.floor(block._crush)
@@ -912,6 +912,40 @@ Window {
         visible: false
 
         Canvas {
+            id: staticBackgroundCache
+            width: root.width
+            height: root.height
+            onPaint: {
+                var bgctx = getContext("2d")
+                bgctx.reset()
+
+                var bg = bgctx.createLinearGradient(0, 0, 0, height)
+                bg.addColorStop(0, "#060710")
+                bg.addColorStop(0.55, "#090c18")
+                bg.addColorStop(1, "#020306")
+                bgctx.fillStyle = bg
+                bgctx.fillRect(0, 0, width, height)
+
+                bgctx.globalAlpha = 0.22
+                bgctx.fillStyle = "#203f7f"
+                bgctx.beginPath()
+                bgctx.arc(width * 0.18, height * 0.2, 170, 0, Math.PI * 2)
+                bgctx.fill()
+                bgctx.fillStyle = "#27436b"
+                bgctx.beginPath()
+                bgctx.arc(width * 0.82, height * 0.35, 220, 0, Math.PI * 2)
+                bgctx.fill()
+
+                bgctx.globalAlpha = 0.035
+                bgctx.fillStyle = "#c7d8ff"
+                for (var y = 84; y < height; y += 8) {
+                    bgctx.fillRect(0, y, width, 1)
+                }
+                bgctx.globalAlpha = 1
+            }
+        }
+
+        Canvas {
             id: playerSpriteCache
             width: 56
             height: 24
@@ -1014,9 +1048,6 @@ Window {
             var ctx = getContext("2d")
             ctx.reset()
 
-            var bg = ctx.createLinearGradient(0, 0, 0, height)
-            bg.addColorStop(0, "#060710")
-            bg.addColorStop(0.55, "#090c18")
             // Apply screen shake effect
             if (root.screenShakeIntensity > 0) {
                 var shakeX = (Math.random() - 0.5) * root.screenShakeIntensity
@@ -1025,20 +1056,7 @@ Window {
                 ctx.translate(shakeX, shakeY)
             }
 
-            bg.addColorStop(1, "#020306")
-            ctx.fillStyle = bg
-            ctx.fillRect(0, 0, width, height)
-
-            ctx.globalAlpha = 0.22
-            ctx.fillStyle = "#203f7f"
-            ctx.beginPath()
-            ctx.arc(width * 0.18, height * 0.2, 170, 0, Math.PI * 2)
-            ctx.fill()
-            ctx.fillStyle = "#27436b"
-            ctx.beginPath()
-            ctx.arc(width * 0.82, height * 0.35, 220, 0, Math.PI * 2)
-            ctx.fill()
-            ctx.globalAlpha = 1
+            ctx.drawImage(staticBackgroundCache, 0, 0)
 
             for (var s = 0; s < root.stars.length; ++s) {
                 var star = root.stars[s]
@@ -1107,13 +1125,6 @@ Window {
             ctx.fillText("LIVES  " + root.lives, width - 180, 32)
             ctx.font = "bold 20px monospace"
             ctx.fillText("WAVE  " + root.level, width * 0.5 - 60, 62)
-
-            ctx.globalAlpha = 0.035
-            ctx.fillStyle = "#c7d8ff"
-            for (var y = 84; y < height; y += 8) {
-                ctx.fillRect(0, y, width, 1)
-            }
-            ctx.globalAlpha = 1
 
             ctx.textAlign = "center"
             if (root.gameState === root.stateStart) {
@@ -1239,6 +1250,7 @@ Window {
 
         source: playlist[playlistIndex]
         audioOutput: bgmOutput
+
         onMediaStatusChanged: {
             if (mediaStatus === MediaPlayer.EndOfMedia) {
                 nextSong()
@@ -1251,6 +1263,7 @@ Window {
 
     Component.onCompleted: {
         loadHighScore()
+        staticBackgroundCache.requestPaint()
         playerSpriteCache.requestPaint()
         alienType0Frame0Cache.requestPaint()
         alienType0Frame1Cache.requestPaint()
@@ -1265,4 +1278,6 @@ Window {
     }
 
     onMusicEnabledChanged: updateMusicState()
+    onWidthChanged: staticBackgroundCache.requestPaint()
+    onHeightChanged: staticBackgroundCache.requestPaint()
 }
