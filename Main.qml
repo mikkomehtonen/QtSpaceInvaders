@@ -48,7 +48,7 @@ Window {
     property bool soundsEnabled: true
     property real sfxVolume: 0.55
     property bool musicEnabled: true
-    property real musicVolume: 0.26
+    property real musicVolume: 0.15
     property bool showHelp: false
     property real renderClock: 0
     property real invaderAnimClock: 0
