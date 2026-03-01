@@ -720,6 +720,31 @@ Window {
         cleanupProjectiles()
     }
 
+    function handleAlienBunkerCollisions(dt) {
+        // How fast aliens destroy the bunkers (hp/second)
+        var crushRate = 5.0
+
+        for (var a = 0; a < aliens.length; ++a) {
+            var alien = aliens[a]
+            if (!alien.alive) continue
+
+            for (var b = 0; b < bunkers.length; ++b) {
+                var block = bunkers[b]
+                if (block.hp <= 0) continue
+
+                if (aabb(alien.x, alien.y, alien.w, alien.h, block.x, block.y, block.w, block.h)) {
+                    // dt-pohjainen kulutus, mutta hp on int → käytä pientä kertymää
+                    block._crush = (block._crush || 0) + crushRate * dt
+                    if (block._crush >= 1) {
+                        var dmg = Math.floor(block._crush)
+                        block._crush -= dmg
+                        block.hp -= dmg
+                    }
+                }
+            }
+        }
+    }
+
     function stepSimulation(dt) {
         updateHitParticles(dt)
         shootCooldown = Math.max(0, shootCooldown - dt)
@@ -741,6 +766,7 @@ Window {
 
         tryEnemyShoot(dt)
         handleCollisions()
+        handleAlienBunkerCollisions(dt)
         if (screenShakeDuration > 0) {
             screenShakeDuration -= dt
             if (screenShakeDuration <= 0) {
