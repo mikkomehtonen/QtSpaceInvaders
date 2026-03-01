@@ -6,9 +6,14 @@ Window {
     id: root
     width: 900
     height: 700
+    minimumWidth: 900
+    maximumWidth: 900
+    minimumHeight: 700
+    maximumHeight: 700
     visible: true
     color: "#06070a"
     title: "Qt Space Invaders"
+    flags: Qt.Window | Qt.CustomizeWindowHint | Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.WindowMinimizeButtonHint
 
     readonly property int stateStart: 0
     readonly property int stateRunning: 1
@@ -1280,4 +1285,9 @@ Window {
     onMusicEnabledChanged: updateMusicState()
     onWidthChanged: staticBackgroundCache.requestPaint()
     onHeightChanged: staticBackgroundCache.requestPaint()
+    onVisibilityChanged: {
+        if (visibility === Window.Maximized || visibility === Window.FullScreen) {
+            visibility = Window.Windowed
+        }
+    }
 }
