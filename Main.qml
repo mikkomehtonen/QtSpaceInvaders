@@ -1242,8 +1242,8 @@ Window {
         }
 
         readonly property var playlist: [
-            "qrc:/qt/qml/QtSpaceInvaders/assets/music/orbital_siege_loop.mp3",
-            "qrc:/qt/qml/QtSpaceInvaders/assets/music/galactic_onslaught.mp3"
+            "qrc:/qt/qml/QtSpaceInvaders/assets/music/orbital_siege_loop.ogg",
+            "qrc:/qt/qml/QtSpaceInvaders/assets/music/galactic_onslaught.ogg"
         ]
         property int playlistIndex: 0
         property bool pendingPlay: false

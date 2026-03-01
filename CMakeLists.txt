@@ -23,8 +23,8 @@ qt_add_qml_module(appQtSpaceInvaders
         assets/sfx/player_hit.wav
         assets/sfx/wave_clear.wav
         assets/sfx/game_over.wav
-        assets/music/galactic_onslaught.mp3
-        assets/music/orbital_siege_loop.mp3
+        assets/music/galactic_onslaught.ogg
+        assets/music/orbital_siege_loop.ogg
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
