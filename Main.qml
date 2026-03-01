@@ -26,6 +26,9 @@ Window {
     property int highScore: 0
     property int lives: 3
     property int level: 1
+    property int bombCount: 0
+    property int maxBombCount: 3
+    property int nextBombScoreThreshold: 1000
 
     property real playerX: 0
     property real playerY: height - 70
@@ -34,6 +37,7 @@ Window {
     property real playerSpeed: 360
 
     property real playerShotSpeed: 520
+    property real bombShotSpeed: playerShotSpeed * 0.5
     property real enemyShotSpeed: 250
     property real shootCooldown: 0
     property real shootDelay: 0.30
@@ -71,6 +75,7 @@ Window {
 
     property var aliens: []
     property var playerBullets: []
+    property var playerBombs: []
     property var enemyBullets: []
     property var bunkers: []
     property var stars: []
@@ -287,6 +292,15 @@ Window {
         }
     }
 
+    function updateBombRewards() {
+        while (nextBombScoreThreshold <= score) {
+            if (bombCount < maxBombCount) {
+                bombCount += 1
+            }
+            nextBombScoreThreshold += 1000
+        }
+    }
+
     function updateMusicState() {
         if (musicEnabled) {
             if (bgmPlayer.playbackState !== MediaPlayer.PlayingState) {
@@ -333,6 +347,7 @@ Window {
 
         aliens = wave
         playerBullets = []
+        playerBombs = []
         enemyBullets = []
         hitParticles = []
         alienDirection = 1
@@ -393,6 +408,7 @@ Window {
         playerX = (width - playerWidth) * 0.5
         playerY = height - 70
         playerBullets = []
+        playerBombs = []
         enemyBullets = []
         shootCooldown = 0
         attractMoveClock = 0
@@ -405,6 +421,9 @@ Window {
         score = 0
         lives = 3
         level = 1
+        bombCount = 0
+        maxBombCount = 3
+        nextBombScoreThreshold = 1000
         showHelp = false
         playerX = (width - playerWidth) * 0.5
         playerY = height - 70
@@ -437,6 +456,13 @@ Window {
             playerBullets[i].y -= playerShotSpeed * dt
             if (playerBullets[i].y + playerBullets[i].h < 0) {
                 playerBullets[i].dead = true
+            }
+        }
+
+        for (var b = 0; b < playerBombs.length; ++b) {
+            playerBombs[b].y -= bombShotSpeed * dt
+            if (playerBombs[b].y + playerBombs[b].h < 0) {
+                playerBombs[b].dead = true
             }
         }
 
@@ -568,10 +594,32 @@ Window {
         }
     }
 
+    function launchBomb() {
+        if (bombCount <= 0) {
+            return
+        }
+
+        bombCount -= 1
+        playerBombs.push({
+            x: playerX + playerWidth * 0.5 - 5,
+            y: playerY - 14,
+            w: 10,
+            h: 16,
+            dead: false
+        })
+        playSfx(sfxShoot)
+    }
+
     function cleanupProjectiles() {
         for (var p = playerBullets.length - 1; p >= 0; --p) {
             if (playerBullets[p].dead) {
                 playerBullets.splice(p, 1)
+            }
+        }
+
+        for (var b = playerBombs.length - 1; b >= 0; --b) {
+            if (playerBombs[b].dead) {
+                playerBombs.splice(b, 1)
             }
         }
 
@@ -659,6 +707,7 @@ Window {
                     spawnAlienHitParticles(alien.x + alien.w * 0.5, alien.y + alien.h * 0.5, alienColorForRow(alien.row))
                     score += (6 - alien.row) * 10
                     updateHighScoreIfNeeded()
+                    updateBombRewards()
                     playSfx(sfxAlienHit)
                     break
                 }
@@ -676,6 +725,63 @@ Window {
                 if (aabb(pb.x, pb.y, pb.w, pb.h, block.x, block.y, block.w, block.h)) {
                     block.hp -= 2
                     pb.dead = true
+                    break
+                }
+            }
+        }
+
+        for (var m = 0; m < playerBombs.length; ++m) {
+            var bomb = playerBombs[m]
+            if (bomb.dead) {
+                continue
+            }
+
+            for (var q = 0; q < aliens.length; ++q) {
+                var hitAlien = aliens[q]
+                if (!hitAlien.alive) {
+                    continue
+                }
+
+                if (!aabb(bomb.x, bomb.y, bomb.w, bomb.h, hitAlien.x, hitAlien.y, hitAlien.w, hitAlien.h)) {
+                    continue
+                }
+
+                bomb.dead = true
+                for (var r = 0; r < aliens.length; ++r) {
+                    var nearAlien = aliens[r]
+                    if (!nearAlien.alive) {
+                        continue
+                    }
+
+                    var adjacentX = Math.abs(nearAlien.x - hitAlien.x) <= (hitAlien.w + 20)
+                    var adjacentY = Math.abs(nearAlien.y - hitAlien.y) <= (hitAlien.h + 16)
+                    if (!adjacentX || !adjacentY) {
+                        continue
+                    }
+
+                    nearAlien.alive = false
+                    spawnAlienHitParticles(nearAlien.x + nearAlien.w * 0.5, nearAlien.y + nearAlien.h * 0.5, alienColorForRow(nearAlien.row))
+                    score += (6 - nearAlien.row) * 10
+                }
+
+                updateHighScoreIfNeeded()
+                updateBombRewards()
+                playSfx(sfxAlienHit)
+                break
+            }
+
+            if (bomb.dead) {
+                continue
+            }
+
+            for (var br = 0; br < bunkers.length; ++br) {
+                var bunker = bunkers[br]
+                if (bunker.hp <= 0) {
+                    continue
+                }
+                if (aabb(bomb.x, bomb.y, bomb.w, bomb.h, bunker.x, bunker.y, bunker.w, bunker.h)) {
+                    bunker.hp = Math.max(0, bunker.hp - 3)
+                    bomb.dead = true
                     break
                 }
             }
@@ -852,6 +958,9 @@ Window {
             }
             if (root.gameState === root.stateRunning && event.key === Qt.Key_Space) {
                 root.shootPressed = true
+            }
+            if (root.gameState === root.stateRunning && (event.key === Qt.Key_B)) {
+                root.launchBomb()
             }
 
             if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && root.gameState === root.stateStart) {
@@ -1104,6 +1213,21 @@ Window {
                 ctx.fillRect(pb.x, pb.y + pb.h, pb.w, 6)
             }
 
+            for (var pbm = 0; pbm < root.playerBombs.length; ++pbm) {
+                var bomb = root.playerBombs[pbm]
+                // Bomb flies upward: draw pointed nose at the top.
+                ctx.fillStyle = "#ffd27a"
+                ctx.beginPath()
+                ctx.moveTo(bomb.x + bomb.w * 0.5, bomb.y - 5)
+                ctx.lineTo(bomb.x, bomb.y + 3)
+                ctx.lineTo(bomb.x + bomb.w, bomb.y + 3)
+                ctx.closePath()
+                ctx.fill()
+                ctx.fillRect(bomb.x + 1, bomb.y + 3, bomb.w - 2, bomb.h - 3)
+                ctx.fillStyle = "rgba(255, 160, 60, 0.5)"
+                ctx.fillRect(bomb.x + 2, bomb.y + bomb.h, bomb.w - 4, 7)
+            }
+
             for (var e = 0; e < root.enemyBullets.length; ++e) {
                 var eb = root.enemyBullets[e]
                 ctx.fillStyle = "#ff9090"
@@ -1128,6 +1252,7 @@ Window {
             ctx.fillText("SCORE  " + root.score, 22, 32)
             ctx.fillText("HIGH  " + root.highScore, width * 0.5 - 95, 32)
             ctx.fillText("LIVES  " + root.lives, width - 180, 32)
+            ctx.fillText("BOMBS  " + root.bombCount, width - 180, 62)
             ctx.font = "bold 20px monospace"
             ctx.fillText("WAVE  " + root.level, width * 0.5 - 60, 62)
 
@@ -1141,6 +1266,7 @@ Window {
                 ctx.fillText("High Score: " + root.highScore, width * 0.5, height * 0.58)
                 ctx.fillText("Press H for help", width * 0.5, height * 0.64)
                 ctx.fillText("Move: A/D or Left/Right  Fire: Space", width * 0.5, height * 0.70)
+                ctx.fillText("Bomb: B (earns every 1000 points, max 3)", width * 0.5, height * 0.75)
             } else if (root.gameState === root.stateWaveCleared) {
                 ctx.fillStyle = "#b5ffb5"
                 ctx.font = "bold 46px monospace"
@@ -1186,12 +1312,13 @@ Window {
                 ctx.fillStyle = "#dce8ff"
                 ctx.font = "22px monospace"
                 ctx.fillText("Enter  - Start / Next Wave / Restart", width * 0.5, height * 0.5 - 95)
-                ctx.fillText("A / Left Arrow   - Move Left", width * 0.5, height * 0.5 - 55)
-                ctx.fillText("D / Right Arrow  - Move Right", width * 0.5, height * 0.5 - 15)
-                ctx.fillText("Space - Fire", width * 0.5, height * 0.5 + 25)
-                ctx.fillText("P - Pause / Resume", width * 0.5, height * 0.5 + 65)
-                ctx.fillText("M - Music Mute / Unmute", width * 0.5, height * 0.5 + 105)
-                ctx.fillText("- / = - Music Volume Down / Up", width * 0.5, height * 0.5 + 145)
+                ctx.fillText("A / Left Arrow   - Move Left", width * 0.5, height * 0.5 - 60)
+                ctx.fillText("D / Right Arrow  - Move Right", width * 0.5, height * 0.5 - 25)
+                ctx.fillText("Space - Fire", width * 0.5, height * 0.5 + 10)
+                ctx.fillText("B - Launch Bomb (every 1000 points, max 3)", width * 0.5, height * 0.5 + 45)
+                ctx.fillText("P - Pause / Resume", width * 0.5, height * 0.5 + 80)
+                ctx.fillText("M - Music Mute / Unmute", width * 0.5, height * 0.5 + 115)
+                ctx.fillText("- / = - Music Volume Down / Up", width * 0.5, height * 0.5 + 150)
                 ctx.fillText("H - Close Help", width * 0.5, height * 0.5 + 185)
             }
             ctx.textAlign = "start"

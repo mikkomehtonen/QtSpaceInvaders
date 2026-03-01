@@ -7,6 +7,7 @@ A classic Space Invaders style game built with Qt 6 and QML.
 - Traditional Space Invaders gameplay loop
 - Wave progression with increasing difficulty
 - Player lives, score, and persistent high score
+- Bomb weapon system with score-based recharge (every 1000 points, max 3)
 - Short player hit/death animation on impact
 - Pause/resume support
 - Toggleable in-game help screen with full control list
@@ -55,6 +56,7 @@ flatpak build-bundle ~/.local/share/flatpak/repo QtSpaceInvaders.flatpak com.meh
 - `A` / `Left Arrow`: Move left
 - `D` / `Right Arrow`: Move right
 - `Space`: Fire
+- `B`: Launch bomb (earns every 1000 points, max 3)
 - `P`: Pause / resume
 - `H`: Toggle help screen
 - `M`: Mute / unmute music
