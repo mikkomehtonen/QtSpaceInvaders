@@ -32,6 +32,10 @@ Window {
     property real enemyShotSpeed: 250
     property real shootCooldown: 0
     property real shootDelay: 0.30
+    property real attractCruiseSpeed: 230
+    property real attractMoveClock: 0
+    property real attractShootClock: 0
+    property real attractShootDelay: 0
 
     property real alienSpeed: 45
     property real alienDirection: 1
@@ -54,6 +58,7 @@ Window {
     property bool spriteCacheReady: false
 
     property bool leftPressed: false
+    property real attractTargetX: 0
     property real screenShakeIntensity: 0
     property real screenShakeDuration: 0
     property bool rightPressed: false
@@ -375,6 +380,22 @@ Window {
         bunkers = allCells
     }
 
+    function setAttractTargetX() {
+        attractTargetX = randRange(10, width - playerWidth - 10)
+    }
+
+    function resetStartAttractMode() {
+        playerX = (width - playerWidth) * 0.5
+        playerY = height - 70
+        playerBullets = []
+        enemyBullets = []
+        shootCooldown = 0
+        attractMoveClock = 0
+        attractShootClock = 0
+        attractShootDelay = randRange(0.8, 2.4)
+        setAttractTargetX()
+    }
+
     function startNewGame() {
         score = 0
         lives = 3
@@ -525,6 +546,10 @@ Window {
             return
         }
 
+        spawnPlayerBullet(true)
+    }
+
+    function spawnPlayerBullet(playSound) {
         playerBullets.push({
             x: playerX + playerWidth * 0.5 - 2,
             y: playerY - 14,
@@ -533,7 +558,49 @@ Window {
             dead: false
         })
         shootCooldown = shootDelay
-        playSfx(sfxShoot)
+        if (playSound) {
+            playSfx(sfxShoot)
+        }
+    }
+
+    function cleanupProjectiles() {
+        for (var p = playerBullets.length - 1; p >= 0; --p) {
+            if (playerBullets[p].dead) {
+                playerBullets.splice(p, 1)
+            }
+        }
+
+        for (var e = enemyBullets.length - 1; e >= 0; --e) {
+            if (enemyBullets[e].dead) {
+                enemyBullets.splice(e, 1)
+            }
+        }
+    }
+
+    function stepStartAttractMode(dt) {
+        shootCooldown = Math.max(0, shootCooldown - dt)
+        attractMoveClock += dt
+        attractShootClock += dt
+
+        var dx = attractTargetX - playerX
+        if (Math.abs(dx) < 8 || attractMoveClock > 2.8) {
+            attractMoveClock = 0
+            setAttractTargetX()
+            dx = attractTargetX - playerX
+        }
+
+        var maxStep = attractCruiseSpeed * dt
+        playerX += clamp(dx, -maxStep, maxStep)
+        playerX = clamp(playerX, 10, width - playerWidth - 10)
+
+        if (shootCooldown <= 0 && attractShootClock >= attractShootDelay) {
+            attractShootClock = 0
+            attractShootDelay = randRange(0.8, 2.4)
+            spawnPlayerBullet(Math.random() < 0.35)
+        }
+
+        updateBullets(dt)
+        cleanupProjectiles()
     }
 
     function spawnAlienHitParticles(x, y, color) {
@@ -650,17 +717,7 @@ Window {
             }
         }
 
-        for (var p = playerBullets.length - 1; p >= 0; --p) {
-            if (playerBullets[p].dead) {
-                playerBullets.splice(p, 1)
-            }
-        }
-
-        for (var e = enemyBullets.length - 1; e >= 0; --e) {
-            if (enemyBullets[e].dead) {
-                enemyBullets.splice(e, 1)
-            }
-        }
+        cleanupProjectiles()
     }
 
     function stepSimulation(dt) {
@@ -809,6 +866,9 @@ Window {
             root.renderClock += dt
             if (root.gameState === root.stateRunning && !root.showHelp) {
                 root.stepSimulation(dt)
+            }
+            if (root.gameState === root.stateStart && !root.showHelp) {
+                root.stepStartAttractMode(dt)
             }
             if (root.gameState === root.stateRunning && !root.showHelp) {
                 root.invaderAnimClock += dt
@@ -1173,6 +1233,7 @@ Window {
         alienType2Frame0Cache.requestPaint()
         alienType2Frame1Cache.requestPaint()
         createStars()
+        resetStartAttractMode()
         updateMusicState()
         gameCanvas.requestPaint()
     }
