@@ -1048,17 +1048,18 @@ Window {
                 ctx.fillText("Press ENTER for next wave", width * 0.5, height * 0.55)
             } else if (root.gameState === root.stateGameOver) {
                 ctx.fillStyle = "rgba(8, 14, 28, 0.80)"
-                ctx.fillRect(width * 0.5 - 260, height * 0.46 - 70, 520, 190)
+                ctx.fillRect(width * 0.5 - 260, height * 0.46 - 70, 520, 250)
                 ctx.strokeStyle = "rgba(193, 214, 255, 0.45)"
                 ctx.lineWidth = 2
-                ctx.strokeRect(width * 0.5 - 260, height * 0.46 - 70, 520, 190)
+                ctx.strokeRect(width * 0.5 - 260, height * 0.46 - 70, 520, 250)
                 ctx.fillStyle = "#ffb0b0"
                 ctx.font = "bold 46px monospace"
                 ctx.fillText("GAME OVER", width * 0.5, height * 0.46)
                 ctx.fillStyle = "#dce8ff"
                 ctx.font = "24px monospace"
                 ctx.fillText("Press ENTER to restart", width * 0.5, height * 0.55)
-                ctx.fillText("High Score: " + root.highScore, width * 0.5, height * 0.61)
+                ctx.fillText("Score: " + root.score, width * 0.5, height * 0.61)
+                ctx.fillText("High Score: " + root.highScore, width * 0.5, height * 0.67)
             } else if (root.gameState === root.statePaused) {
                 ctx.fillStyle = "rgba(5, 10, 20, 0.58)"
                 ctx.fillRect(0, 0, width, height)
