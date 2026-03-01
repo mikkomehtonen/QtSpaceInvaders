@@ -1,22 +1,56 @@
 {
-  "app-id": "com.mehtonen.QtSpaceInvaders",
-  "runtime": "org.kde.Platform",
-  "runtime-version": "6.9",
-  "sdk": "org.kde.Sdk",
-  "command": "appQtSpaceInvaders",
-  "finish-args": [
-    "--socket=wayland",
-    "--socket=fallback-x11",
-    "--device=dri",
-    "--socket=pulseaudio"
-  ],
-  "modules": [
-    {
-      "name": "QtSpaceInvaders",
-      "buildsystem": "cmake",
-      "builddir": true,
-      "config-opts": ["-DCMAKE_BUILD_TYPE=Release"],
-      "sources": [{ "type": "dir", "path": "." }]
-    }
-  ]
+    "app-id": "com.mehtonen.QtSpaceInvaders",
+    "runtime": "org.kde.Platform",
+    "runtime-version": "6.9",
+    "sdk": "org.kde.Sdk",
+    "command": "appQtSpaceInvaders",
+    "finish-args": [
+        "--socket=wayland",
+        "--socket=fallback-x11",
+        "--device=dri",
+        "--socket=pulseaudio"
+    ],
+    "modules": [
+        {
+            "name": "QtSpaceInvaders",
+            "buildsystem": "cmake",
+            "builddir": true,
+            "config-opts": [
+                "-DCMAKE_BUILD_TYPE=Release"
+            ],
+            "sources": [
+                {
+                    "type": "dir",
+                    "path": "."
+                }
+            ]
+        },
+        {
+            "name": "desktop-and-icons",
+            "buildsystem": "simple",
+            "build-commands": [
+                "install -D com.mehtonen.QtSpaceInvaders.desktop /app/share/applications/com.mehtonen.QtSpaceInvaders.desktop",
+                "install -D com.mehtonen.QtSpaceInvaders.metainfo.xml /app/share/metainfo/com.mehtonen.QtSpaceInvaders.metainfo.xml",
+                "install -d /app/share/icons",
+                "cp -r icons/hicolor /app/share/icons/"
+            ],
+            "sources": [
+                {
+                    "type": "file",
+                    "path": "com.mehtonen.QtSpaceInvaders.desktop",
+                    "dest-filename": "com.mehtonen.QtSpaceInvaders.desktop"
+                },
+                {
+                    "type": "file",
+                    "path": "com.mehtonen.QtSpaceInvaders.metainfo.xml",
+                    "dest-filename": "com.mehtonen.QtSpaceInvaders.metainfo.xml"
+                },
+                {
+                    "type": "dir",
+                    "path": "icons",
+                    "dest": "icons"
+                }
+            ]
+        }
+    ]
 }

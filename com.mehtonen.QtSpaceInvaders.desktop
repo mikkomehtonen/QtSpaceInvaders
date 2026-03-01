@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Qt Space Invaders
+Exec=appQtSpaceInvaders
+Icon=com.mehtonen.QtSpaceInvaders
+Type=Application
+Categories=Game;
+Terminal=false
