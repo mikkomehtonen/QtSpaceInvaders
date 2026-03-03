@@ -75,6 +75,8 @@ Window {
     property bool shootPressed: false
 
     property var aliens: []
+    property var aliveAliensCache: []
+    property var aliveAliensByRowCache: []
     property var playerBullets: []
     property var playerBombs: []
     property var enemyBullets: []
@@ -357,6 +359,8 @@ Window {
         }
 
         aliens = wave
+        aliveAliensCache = wave
+        aliveAliensByRowCache = []
         playerBullets = []
         playerBombs = []
         enemyBullets = []
@@ -489,15 +493,26 @@ Window {
         var aliveCount = 0
         var minX = 1e9
         var maxX = -1e9
+        var aliveList = []
+        var byRow = []
 
         for (var i = 0; i < aliens.length; ++i) {
-            if (!aliens[i].alive) {
+            var currentAlien = aliens[i]
+            if (!currentAlien.alive) {
                 continue
             }
+            aliveList.push(currentAlien)
+            if (!byRow[currentAlien.row]) {
+                byRow[currentAlien.row] = []
+            }
+            byRow[currentAlien.row].push(currentAlien)
             aliveCount += 1
-            minX = Math.min(minX, aliens[i].x)
-            maxX = Math.max(maxX, aliens[i].x + aliens[i].w)
+            minX = Math.min(minX, currentAlien.x)
+            maxX = Math.max(maxX, currentAlien.x + currentAlien.w)
         }
+
+        aliveAliensCache = aliveList
+        aliveAliensByRowCache = byRow
 
         if (aliveCount === 0) {
             setGameState(stateWaveCleared)
@@ -707,20 +722,43 @@ Window {
                 continue
             }
 
-            for (var a = 0; a < aliens.length; ++a) {
-                var alien = aliens[a]
-                if (!alien.alive) {
+            var pbTop = pb.y
+            var pbBottom = pb.y + pb.h
+            for (var row = 0; row < aliveAliensByRowCache.length && !pb.dead; ++row) {
+                var rowAliens = aliveAliensByRowCache[row]
+                if (!rowAliens || rowAliens.length === 0) {
                     continue
                 }
-                if (aabb(pb.x, pb.y, pb.w, pb.h, alien.x, alien.y, alien.w, alien.h)) {
-                    alien.alive = false
-                    pb.dead = true
-                    spawnAlienHitParticles(alien.x + alien.w * 0.5, alien.y + alien.h * 0.5, alienColorForRow(alien.row))
-                    score += (6 - alien.row) * 10
-                    updateHighScoreIfNeeded()
-                    updateBombRewards()
-                    playSfx(sfxAlienHit)
-                    break
+
+                var rowAnchor = null
+                for (var ra = 0; ra < rowAliens.length; ++ra) {
+                    if (rowAliens[ra].alive) {
+                        rowAnchor = rowAliens[ra]
+                        break
+                    }
+                }
+                if (!rowAnchor) {
+                    continue
+                }
+                if (pbBottom <= rowAnchor.y || pbTop >= rowAnchor.y + rowAnchor.h) {
+                    continue
+                }
+
+                for (var a = 0; a < rowAliens.length; ++a) {
+                    var alien = rowAliens[a]
+                    if (!alien.alive) {
+                        continue
+                    }
+                    if (aabb(pb.x, pb.y, pb.w, pb.h, alien.x, alien.y, alien.w, alien.h)) {
+                        alien.alive = false
+                        pb.dead = true
+                        spawnAlienHitParticles(alien.x + alien.w * 0.5, alien.y + alien.h * 0.5, alienColorForRow(alien.row))
+                        score += (6 - alien.row) * 10
+                        updateHighScoreIfNeeded()
+                        updateBombRewards()
+                        playSfx(sfxAlienHit)
+                        break
+                    }
                 }
             }
 
@@ -747,38 +785,61 @@ Window {
                 continue
             }
 
-            for (var q = 0; q < aliens.length; ++q) {
-                var hitAlien = aliens[q]
-                if (!hitAlien.alive) {
+            var bombTop = bomb.y
+            var bombBottom = bomb.y + bomb.h
+            for (var bombRow = 0; bombRow < aliveAliensByRowCache.length && !bomb.dead; ++bombRow) {
+                var bombRowAliens = aliveAliensByRowCache[bombRow]
+                if (!bombRowAliens || bombRowAliens.length === 0) {
                     continue
                 }
 
-                if (!aabb(bomb.x, bomb.y, bomb.w, bomb.h, hitAlien.x, hitAlien.y, hitAlien.w, hitAlien.h)) {
+                var bombRowAnchor = null
+                for (var bra = 0; bra < bombRowAliens.length; ++bra) {
+                    if (bombRowAliens[bra].alive) {
+                        bombRowAnchor = bombRowAliens[bra]
+                        break
+                    }
+                }
+                if (!bombRowAnchor) {
+                    continue
+                }
+                if (bombBottom <= bombRowAnchor.y || bombTop >= bombRowAnchor.y + bombRowAnchor.h) {
                     continue
                 }
 
-                bomb.dead = true
-                for (var r = 0; r < aliens.length; ++r) {
-                    var nearAlien = aliens[r]
-                    if (!nearAlien.alive) {
+                for (var q = 0; q < bombRowAliens.length; ++q) {
+                    var hitAlien = bombRowAliens[q]
+                    if (!hitAlien.alive) {
                         continue
                     }
 
-                    var adjacentX = Math.abs(nearAlien.x - hitAlien.x) <= (hitAlien.w + 20)
-                    var adjacentY = Math.abs(nearAlien.y - hitAlien.y) <= (hitAlien.h + 16)
-                    if (!adjacentX || !adjacentY) {
+                    if (!aabb(bomb.x, bomb.y, bomb.w, bomb.h, hitAlien.x, hitAlien.y, hitAlien.w, hitAlien.h)) {
                         continue
                     }
 
-                    nearAlien.alive = false
-                    spawnAlienHitParticles(nearAlien.x + nearAlien.w * 0.5, nearAlien.y + nearAlien.h * 0.5, alienColorForRow(nearAlien.row))
-                    score += (6 - nearAlien.row) * 10
+                    bomb.dead = true
+                    for (var r = 0; r < aliveAliensCache.length; ++r) {
+                        var nearAlien = aliveAliensCache[r]
+                        if (!nearAlien.alive) {
+                            continue
+                        }
+
+                        var adjacentX = Math.abs(nearAlien.x - hitAlien.x) <= (hitAlien.w + 20)
+                        var adjacentY = Math.abs(nearAlien.y - hitAlien.y) <= (hitAlien.h + 16)
+                        if (!adjacentX || !adjacentY) {
+                            continue
+                        }
+
+                        nearAlien.alive = false
+                        spawnAlienHitParticles(nearAlien.x + nearAlien.w * 0.5, nearAlien.y + nearAlien.h * 0.5, alienColorForRow(nearAlien.row))
+                        score += (6 - nearAlien.row) * 10
+                    }
+
+                    updateHighScoreIfNeeded()
+                    updateBombRewards()
+                    playSfx(sfxAlienHit)
+                    break
                 }
-
-                updateHighScoreIfNeeded()
-                updateBombRewards()
-                playSfx(sfxAlienHit)
-                break
             }
 
             if (bomb.dead) {
@@ -847,20 +908,44 @@ Window {
 
         // How fast aliens destroy the bunkers (hp/second)
         var crushRate = 5.0
-        for (var a = 0; a < aliens.length; ++a) {
-            var alien = aliens[a]
-            if (!alien.alive) continue
+        for (var b = 0; b < bunkers.length; ++b) {
+            var block = bunkers[b]
+            if (block.hp <= 0) continue
 
-            for (var b = 0; b < bunkers.length; ++b) {
-                var block = bunkers[b]
-                if (block.hp <= 0) continue
+            var blockTop = block.y
+            var blockBottom = block.y + block.h
+            for (var row = 0; row < aliveAliensByRowCache.length; ++row) {
+                var rowAliens = aliveAliensByRowCache[row]
+                if (!rowAliens || rowAliens.length === 0) {
+                    continue
+                }
 
-                if (aabb(alien.x, alien.y, alien.w, alien.h, block.x, block.y, block.w, block.h)) {
-                    block._crush = (block._crush || 0) + crushRate * dt
-                    if (block._crush >= 1) {
-                        var dmg = Math.floor(block._crush)
-                        block._crush -= dmg
-                        block.hp -= dmg
+                var rowAnchor = null
+                for (var ra = 0; ra < rowAliens.length; ++ra) {
+                    if (rowAliens[ra].alive) {
+                        rowAnchor = rowAliens[ra]
+                        break
+                    }
+                }
+                if (!rowAnchor) {
+                    continue
+                }
+                if (blockBottom <= rowAnchor.y || blockTop >= rowAnchor.y + rowAnchor.h) {
+                    continue
+                }
+
+                for (var a = 0; a < rowAliens.length; ++a) {
+                    var alien = rowAliens[a]
+                    if (!alien.alive) continue
+
+                    if (aabb(alien.x, alien.y, alien.w, alien.h, block.x, block.y, block.w, block.h)) {
+                        block._crush = (block._crush || 0) + crushRate * dt
+                        if (block._crush >= 1) {
+                            var dmg = Math.floor(block._crush)
+                            block._crush -= dmg
+                            block.hp -= dmg
+                        }
+                        break
                     }
                 }
             }
