@@ -1573,13 +1573,28 @@ Window {
             if (root.gameState === root.stateStart) {
                 ctx.fillStyle = "#dce8ff"
                 ctx.font = "bold 48px monospace"
-                ctx.fillText("SPACE INVADERS", width * 0.5, height * 0.42)
-                ctx.font = "24px monospace"
-                ctx.fillText("Press ENTER to start", width * 0.5, height * 0.52)
-                ctx.fillText("High Score: " + root.highScore, width * 0.5, height * 0.58)
-                ctx.fillText("Press H for help", width * 0.5, height * 0.64)
-                ctx.fillText("Move: A/D or Left/Right  Fire: Space", width * 0.5, height * 0.70)
-                ctx.fillText("Bomb: B (earns every 1000 points, max 3)", width * 0.5, height * 0.75)
+                ctx.fillText("SPACE INVADERS", width * 0.5, height * 0.23)
+
+                ctx.fillStyle = "rgba(8, 14, 28, 0.88)"
+                ctx.fillRect(width * 0.5 - 345, height * 0.56 - 190, 690, 390)
+                ctx.strokeStyle = "rgba(193, 214, 255, 0.45)"
+                ctx.lineWidth = 2
+                ctx.strokeRect(width * 0.5 - 345, height * 0.56 - 190, 690, 390)
+
+                ctx.fillStyle = "#cfe2ff"
+                ctx.font = "bold 36px monospace"
+                ctx.fillText("MISSION BRIEF", width * 0.5, height * 0.56 - 130)
+
+                ctx.fillStyle = "#dce8ff"
+                ctx.font = "22px monospace"
+                ctx.fillText("Unknown fleets breached orbit and started", width * 0.5, height * 0.56 - 75)
+                ctx.fillText("striking major cities. Defense command is gone.", width * 0.5, height * 0.56 - 40)
+                ctx.fillText("Your interceptor is the last ship still responding.", width * 0.5, height * 0.56 - 5)
+                ctx.fillText("Hold the line through six attack waves.", width * 0.5, height * 0.56 + 35)
+                ctx.fillText("Wave six brings their warlord.", width * 0.5, height * 0.56 + 70)
+                ctx.fillText("If you fall, civilization falls with you.", width * 0.5, height * 0.56 + 105)
+                ctx.fillText("Press H for controls and combat tips", width * 0.5, height * 0.56 + 150)
+                ctx.fillText("Press ENTER to start", width * 0.5, height * 0.56 + 175)
             } else if (root.gameState === root.stateWaveCleared) {
                 ctx.fillStyle = "#b5ffb5"
                 ctx.font = "bold 46px monospace"
