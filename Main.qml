@@ -20,12 +20,15 @@ Window {
     readonly property int stateWaveCleared: 2
     readonly property int stateGameOver: 3
     readonly property int statePaused: 4
+    readonly property int stateVictory: 5
 
     property int gameState: stateStart
     property int score: 0
     property int highScore: 0
     property int lives: 3
     property int level: 1
+    property int bossWaveLevel: 2
+    property int bossHitPoints: 28
     property int bombCount: 0
     property int maxBombCount: 3
     property int nextBombScoreThreshold: 1000
@@ -54,6 +57,10 @@ Window {
     property real enemyShootClock: 0
     property real enemyShootDelay: 0.9
     property int maxEnemyBullets: 2
+    property real bossMoveClock: 0
+    property real bossRetargetClock: 0
+    property real bossTargetX: 0
+    property real bossBaseY: 95
     property int currentWaveRows: 5
     property int currentWaveCols: 11
     property bool soundsEnabled: true
@@ -219,6 +226,32 @@ Window {
     }
 
     function drawAlien(ctx, alien) {
+        if (alien.boss) {
+            var hpRatio = Math.max(0, alien.hp) / alien.maxHp
+            var pulse = 0.55 + 0.45 * Math.sin(renderClock * 5)
+
+            ctx.fillStyle = "rgba(255, 115, 90, " + (0.18 + pulse * 0.10) + ")"
+            ctx.beginPath()
+            ctx.arc(alien.x + alien.w * 0.5, alien.y + alien.h * 0.5, alien.w * 0.62, 0, Math.PI * 2)
+            ctx.fill()
+
+            ctx.fillStyle = "#ff7a5d"
+            ctx.fillRect(alien.x, alien.y + 8, alien.w, alien.h - 12)
+            ctx.fillStyle = "#ff987f"
+            ctx.fillRect(alien.x + 8, alien.y, alien.w - 16, 16)
+            ctx.fillStyle = "#2b1420"
+            ctx.fillRect(alien.x + 16, alien.y + 12, 12, 8)
+            ctx.fillRect(alien.x + alien.w - 28, alien.y + 12, 12, 8)
+            ctx.fillStyle = "#ffe0d7"
+            ctx.fillRect(alien.x + 12, alien.y + 3, alien.w - 24, 4)
+
+            ctx.fillStyle = "rgba(20, 8, 14, 0.7)"
+            ctx.fillRect(alien.x, alien.y - 12, alien.w, 5)
+            ctx.fillStyle = "#ff6f6f"
+            ctx.fillRect(alien.x, alien.y - 12, alien.w * hpRatio, 5)
+            return
+        }
+
         var type = alien.row < 2 ? 0 : (alien.row < 4 ? 1 : 2)
         var bodyColor = type === 0 ? "#ff8f8f" : (type === 1 ? "#ffd67e" : "#98ff95")
         if (spriteCacheReady) {
@@ -274,12 +307,15 @@ Window {
         if (nextState === stateWaveCleared) {
             playSfx(sfxWaveClear)
             flushHighScoreIfNeeded()
+        } else if (nextState === stateVictory) {
+            playSfx(sfxWaveClear)
+            flushHighScoreIfNeeded()
         } else if (nextState === stateGameOver) {
             playSfx(sfxGameOver)
             flushHighScoreIfNeeded()
         }
-        if (nextState === stateGameOver) {
-            // Reset screen shake when game over
+        if (nextState === stateGameOver || nextState === stateVictory) {
+            // Reset screen shake when run ends
             screenShakeIntensity = 0
             screenShakeDuration = 0
         }
@@ -350,27 +386,56 @@ Window {
     }
 
     function spawnWave() {
-        var rows = currentWaveRows
-        var cols = currentWaveCols
-        var spacingX = 54
-        var spacingY = 42
-        var alienW = 36
-        var alienH = 26
-        var formationWidth = (cols - 1) * spacingX + alienW
-        var startX = (width - formationWidth) * 0.5
-        var startY = 90
         var wave = []
+        if (level === bossWaveLevel) {
+            var bossW = 120
+            var bossH = 84
+            var spawnY = 95
+            wave.push({
+                x: (width - bossW) * 0.5,
+                y: spawnY,
+                w: bossW,
+                h: bossH,
+                row: 0,
+                hp: bossHitPoints,
+                maxHp: bossHitPoints,
+                boss: true,
+                alive: true
+            })
+            bossBaseY = spawnY
+            bossMoveClock = 0
+            bossRetargetClock = 0
+            bossTargetX = randRange(40, width - bossW - 40)
+            alienSpeed = 130
+            alienDrop = 16
+            enemyShotSpeed = 320
+            enemyShootDelay = 0.40
+            maxEnemyBullets = 4
+        } else {
+            var rows = currentWaveRows
+            var cols = currentWaveCols
+            var spacingX = 54
+            var spacingY = 42
+            var alienW = 36
+            var alienH = 26
+            var formationWidth = (cols - 1) * spacingX + alienW
+            var startX = (width - formationWidth) * 0.5
+            var startY = 90
 
-        for (var r = 0; r < rows; ++r) {
-            for (var c = 0; c < cols; ++c) {
-                wave.push({
-                    x: startX + c * spacingX,
-                    y: startY + r * spacingY,
-                    w: alienW,
-                    h: alienH,
-                    row: r,
-                    alive: true
-                })
+            for (var r = 0; r < rows; ++r) {
+                for (var c = 0; c < cols; ++c) {
+                    wave.push({
+                        x: startX + c * spacingX,
+                        y: startY + r * spacingY,
+                        w: alienW,
+                        h: alienH,
+                        row: r,
+                        hp: 1,
+                        maxHp: 1,
+                        boss: false,
+                        alive: true
+                    })
+                }
             }
         }
 
@@ -459,6 +524,8 @@ Window {
         playerX = (width - playerWidth) * 0.5
         playerY = height - 70
         playerInvulnerabilityRemaining = 0
+        bossMoveClock = 0
+        bossRetargetClock = 0
         shootCooldown = 0
         createStars()
         createBunkers()
@@ -499,9 +566,19 @@ Window {
         }
 
         for (var j = 0; j < enemyBullets.length; ++j) {
-            enemyBullets[j].y += enemyShotSpeed * dt
-            if (enemyBullets[j].y > height) {
-                enemyBullets[j].dead = true
+            var enemyBullet = enemyBullets[j]
+            enemyBullet.y += enemyShotSpeed * dt
+            enemyBullet.x += (enemyBullet.vx || 0) * dt
+
+            if (enemyBullet.homing) {
+                var bulletCenterX = enemyBullet.x + enemyBullet.w * 0.5
+                var playerCenterX = playerX + playerWidth * 0.5
+                var steer = clamp((playerCenterX - bulletCenterX) * 2.6, -180, 180)
+                enemyBullet.vx = clamp((enemyBullet.vx || 0) + steer * dt, -260, 260)
+            }
+
+            if (enemyBullet.y > height || enemyBullet.x + enemyBullet.w < 0 || enemyBullet.x > width) {
+                enemyBullet.dead = true
             }
         }
     }
@@ -532,7 +609,39 @@ Window {
         aliveAliensByRowCache = byRow
 
         if (aliveCount === 0) {
-            setGameState(stateWaveCleared)
+            if (level === bossWaveLevel) {
+                setGameState(stateVictory)
+            } else {
+                setGameState(stateWaveCleared)
+            }
+            return
+        }
+
+        if (level === bossWaveLevel && aliveList.length === 1 && aliveList[0].boss) {
+            var boss = aliveList[0]
+            bossMoveClock += dt
+            bossRetargetClock += dt
+
+            if (bossRetargetClock >= 0.85) {
+                bossRetargetClock = 0
+                bossTargetX = randRange(35, width - boss.w - 35)
+            }
+
+            var trackStep = alienSpeed * dt
+            var moveToTarget = clamp(bossTargetX - boss.x, -trackStep, trackStep)
+            var weaveOffset = Math.sin(bossMoveClock * 4.8) * 150 * dt
+            boss.x += moveToTarget + weaveOffset
+            boss.x = clamp(boss.x, 15, width - boss.w - 15)
+
+            var yWave = Math.sin(bossMoveClock * 2.4) * 22 + Math.sin(bossMoveClock * 5.3) * 9
+            boss.y = bossBaseY + yWave
+
+            aliveAliensCache = [boss]
+            aliveAliensByRowCache = [[boss]]
+
+            if (boss.y + boss.h >= playerY - 6) {
+                setGameState(stateGameOver)
+            }
             return
         }
 
@@ -593,16 +702,24 @@ Window {
         }
 
         var shooter = shooters[Math.floor(Math.random() * shooters.length)]
+        var isBossShooter = !!shooter.boss
+        var bulletW = isBossShooter ? 12 : 4
+        var bulletH = isBossShooter ? 24 : 14
+        var bulletDamage = isBossShooter ? 3 : 1
+        var bulletVx = isBossShooter ? clamp((playerX + playerWidth * 0.5 - (shooter.x + shooter.w * 0.5)) * 0.9, -180, 180) : 0
         enemyBullets.push({
-            x: shooter.x + shooter.w * 0.5 - 2,
+            x: shooter.x + shooter.w * 0.5 - bulletW * 0.5,
             y: shooter.y + shooter.h,
-            w: 4,
-            h: 14,
+            w: bulletW,
+            h: bulletH,
+            vx: bulletVx,
+            homing: isBossShooter,
+            damage: bulletDamage,
             dead: false
         })
 
         // Higher levels occasionally fire a second shot to ramp pressure.
-        var bonusShotChance = Math.min(0.45, (level - 1) * 0.06)
+        var bonusShotChance = isBossShooter ? 0 : Math.min(0.45, (level - 1) * 0.06)
         if (enemyBullets.length < maxEnemyBullets && Math.random() < bonusShotChance) {
             var shooter2 = shooters[Math.floor(Math.random() * shooters.length)]
             enemyBullets.push({
@@ -610,6 +727,9 @@ Window {
                 y: shooter2.y + shooter2.h,
                 w: 4,
                 h: 14,
+                vx: 0,
+                homing: false,
+                damage: 1,
                 dead: false
             })
         }
@@ -732,6 +852,24 @@ Window {
         hitParticles = out
     }
 
+    function applyAlienDamage(alien, damage) {
+        if (!alien.alive) {
+            return
+        }
+
+        alien.hp = Math.max(0, alien.hp - damage)
+        var hitColor = alien.boss ? "#ff7a5d" : alienColorForRow(alien.row)
+        spawnAlienHitParticles(alien.x + alien.w * 0.5, alien.y + alien.h * 0.5, hitColor)
+        playSfx(sfxAlienHit)
+
+        if (alien.hp <= 0) {
+            alien.alive = false
+            score += alien.boss ? 2000 : (6 - alien.row) * 10
+            updateHighScoreIfNeeded()
+            updateBombRewards()
+        }
+    }
+
     function handleCollisions() {
         for (var i = 0; i < playerBullets.length; ++i) {
             var pb = playerBullets[i]
@@ -767,13 +905,8 @@ Window {
                         continue
                     }
                     if (aabb(pb.x, pb.y, pb.w, pb.h, alien.x, alien.y, alien.w, alien.h)) {
-                        alien.alive = false
                         pb.dead = true
-                        spawnAlienHitParticles(alien.x + alien.w * 0.5, alien.y + alien.h * 0.5, alienColorForRow(alien.row))
-                        score += (6 - alien.row) * 10
-                        updateHighScoreIfNeeded()
-                        updateBombRewards()
-                        playSfx(sfxAlienHit)
+                        applyAlienDamage(alien, 1)
                         break
                     }
                 }
@@ -847,14 +980,8 @@ Window {
                             continue
                         }
 
-                        nearAlien.alive = false
-                        spawnAlienHitParticles(nearAlien.x + nearAlien.w * 0.5, nearAlien.y + nearAlien.h * 0.5, alienColorForRow(nearAlien.row))
-                        score += (6 - nearAlien.row) * 10
+                        applyAlienDamage(nearAlien, nearAlien === hitAlien ? 4 : 2)
                     }
-
-                    updateHighScoreIfNeeded()
-                    updateBombRewards()
-                    playSfx(sfxAlienHit)
                     break
                 }
             }
@@ -909,7 +1036,7 @@ Window {
                     continue
                 }
                 if (aabb(eb.x, eb.y, eb.w, eb.h, bunkerCell.x, bunkerCell.y, bunkerCell.w, bunkerCell.h)) {
-                    bunkerCell.hp -= 1
+                    bunkerCell.hp -= (eb.damage || 1)
                     eb.dead = true
                     break
                 }
@@ -1085,6 +1212,8 @@ Window {
             if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && root.gameState === root.stateStart) {
                 root.startNewGame()
             } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && root.gameState === root.stateGameOver) {
+                root.startNewGame()
+            } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && root.gameState === root.stateVictory) {
                 root.startNewGame()
             } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && root.gameState === root.stateWaveCleared) {
                 root.nextWave()
@@ -1373,7 +1502,7 @@ Window {
             ctx.fillText("LIVES  " + root.lives, width - 180, 32)
             ctx.fillText("BOMBS  " + root.bombCount, width - 180, 62)
             ctx.font = "bold 20px monospace"
-            ctx.fillText("WAVE  " + root.level, width * 0.5 - 60, 62)
+            ctx.fillText("WAVE  " + (root.level === root.bossWaveLevel ? "BOSS" : root.level), width * 0.5 - 60, 62)
 
             ctx.textAlign = "center"
             if (root.gameState === root.stateStart) {
@@ -1392,7 +1521,11 @@ Window {
                 ctx.fillText("WAVE CLEARED", width * 0.5, height * 0.46)
                 ctx.fillStyle = "#dce8ff"
                 ctx.font = "24px monospace"
-                ctx.fillText("Press ENTER for next wave", width * 0.5, height * 0.55)
+                if (root.level + 1 === root.bossWaveLevel) {
+                    ctx.fillText("Press ENTER for BOSS WAVE", width * 0.5, height * 0.55)
+                } else {
+                    ctx.fillText("Press ENTER for next wave", width * 0.5, height * 0.55)
+                }
             } else if (root.gameState === root.stateGameOver) {
                 ctx.fillStyle = "rgba(8, 14, 28, 0.80)"
                 ctx.fillRect(width * 0.5 - 260, height * 0.46 - 70, 520, 250)
@@ -1407,6 +1540,20 @@ Window {
                 ctx.fillText("Press ENTER to restart", width * 0.5, height * 0.55)
                 ctx.fillText("Score: " + root.score, width * 0.5, height * 0.61)
                 ctx.fillText("High Score: " + root.highScore, width * 0.5, height * 0.67)
+            } else if (root.gameState === root.stateVictory) {
+                ctx.fillStyle = "rgba(8, 14, 28, 0.80)"
+                ctx.fillRect(width * 0.5 - 280, height * 0.46 - 70, 560, 250)
+                ctx.strokeStyle = "rgba(193, 214, 255, 0.45)"
+                ctx.lineWidth = 2
+                ctx.strokeRect(width * 0.5 - 280, height * 0.46 - 70, 560, 250)
+                ctx.fillStyle = "#b5ffb5"
+                ctx.font = "bold 46px monospace"
+                ctx.fillText("BOSS DEFEATED", width * 0.5, height * 0.46)
+                ctx.fillStyle = "#dce8ff"
+                ctx.font = "24px monospace"
+                ctx.fillText("You cleared all waves", width * 0.5, height * 0.55)
+                ctx.fillText("Press ENTER to restart", width * 0.5, height * 0.61)
+                ctx.fillText("Score: " + root.score, width * 0.5, height * 0.67)
             } else if (root.gameState === root.statePaused) {
                 ctx.fillStyle = "rgba(5, 10, 20, 0.58)"
                 ctx.fillRect(0, 0, width, height)
