@@ -27,7 +27,7 @@ Window {
     property int highScore: 0
     property int lives: 3
     property int level: 1
-    property int bossWaveLevel: 2
+    property int bossWaveLevel: 6
     property int bossHitPoints: 28
     property int bombCount: 0
     property int maxBombCount: 3
@@ -92,6 +92,8 @@ Window {
     property var bunkers: []
     property var stars: []
     property var hitParticles: []
+    property var fireworks: []
+    property real fireworkSpawnClock: 0
     property var playerSprite: [
         "00001111110000",
         "00011111111000",
@@ -310,6 +312,10 @@ Window {
         } else if (nextState === stateVictory) {
             playSfx(sfxWaveClear)
             flushHighScoreIfNeeded()
+            fireworks = []
+            fireworkSpawnClock = 0
+            spawnFireworkBurst(width * 0.32, height * 0.34)
+            spawnFireworkBurst(width * 0.68, height * 0.30)
         } else if (nextState === stateGameOver) {
             playSfx(sfxGameOver)
             flushHighScoreIfNeeded()
@@ -526,6 +532,8 @@ Window {
         playerInvulnerabilityRemaining = 0
         bossMoveClock = 0
         bossRetargetClock = 0
+        fireworks = []
+        fireworkSpawnClock = 0
         shootCooldown = 0
         createStars()
         createBunkers()
@@ -850,6 +858,51 @@ Window {
             out.push(p)
         }
         hitParticles = out
+    }
+
+    function spawnFireworkBurst(x, y) {
+        var palette = ["#ffd56a", "#8ee9ff", "#ff92b0", "#9dfd8f", "#ffffff"]
+        for (var i = 0; i < 34; ++i) {
+            var angle = Math.random() * Math.PI * 2
+            var speed = 90 + Math.random() * 190
+            var life = 0.75 + Math.random() * 0.7
+            fireworks.push({
+                x: x,
+                y: y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                life: life,
+                maxLife: life,
+                size: 1.8 + Math.random() * 2.6,
+                color: palette[Math.floor(Math.random() * palette.length)]
+            })
+        }
+    }
+
+    function updateFireworks(dt) {
+        var out = []
+        for (var i = 0; i < fireworks.length; ++i) {
+            var p = fireworks[i]
+            p.life -= dt
+            if (p.life <= 0) {
+                continue
+            }
+            p.x += p.vx * dt
+            p.y += p.vy * dt
+            p.vx *= 0.985
+            p.vy = p.vy * 0.985 + 120 * dt
+            out.push(p)
+        }
+        fireworks = out
+    }
+
+    function stepVictoryEffects(dt) {
+        fireworkSpawnClock += dt
+        if (fireworkSpawnClock >= 0.30) {
+            fireworkSpawnClock = 0
+            spawnFireworkBurst(randRange(90, width - 90), randRange(80, height * 0.52))
+        }
+        updateFireworks(dt)
     }
 
     function applyAlienDamage(alien, damage) {
@@ -1258,6 +1311,9 @@ Window {
             if (root.gameState === root.stateStart && !root.showHelp) {
                 root.stepStartAttractMode(dt)
             }
+            if (root.gameState === root.stateVictory && !root.showHelp) {
+                root.stepVictoryEffects(dt)
+            }
             if (root.gameState === root.stateRunning && !root.showHelp) {
                 root.invaderAnimClock += dt
                 if (root.invaderAnimClock >= 0.30) {
@@ -1490,6 +1546,15 @@ Window {
                 ctx.globalAlpha = Math.max(0, Math.min(1, lifeRatio))
                 ctx.fillStyle = part.color
                 ctx.fillRect(part.x, part.y, part.size, part.size)
+            }
+            ctx.globalAlpha = 1
+
+            for (var fw = 0; fw < root.fireworks.length; ++fw) {
+                var spark = root.fireworks[fw]
+                var sparkLife = spark.life / spark.maxLife
+                ctx.globalAlpha = Math.max(0, Math.min(1, sparkLife))
+                ctx.fillStyle = spark.color
+                ctx.fillRect(spark.x, spark.y, spark.size, spark.size)
             }
             ctx.globalAlpha = 1
 
