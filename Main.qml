@@ -35,6 +35,8 @@ Window {
     property real playerWidth: 56
     property real playerHeight: 24
     property real playerSpeed: 360
+    property real playerInvulnerabilityDuration: 2.0
+    property real playerInvulnerabilityRemaining: 0
 
     property real playerShotSpeed: 520
     property real bombShotSpeed: playerShotSpeed * 0.5
@@ -195,6 +197,20 @@ Window {
     }
 
     function drawPlayer(ctx) {
+        if (playerInvulnerabilityRemaining > 0) {
+            var pulse = 0.55 + 0.45 * Math.sin(renderClock * 16)
+            var centerX = playerX + playerWidth * 0.5
+            var centerY = playerY + playerHeight * 0.5
+            var radius = Math.max(playerWidth, playerHeight) * (0.75 + 0.20 * pulse)
+            ctx.save()
+            ctx.globalAlpha = 0.20 + 0.16 * pulse
+            ctx.fillStyle = "#ffffff"
+            ctx.beginPath()
+            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2)
+            ctx.fill()
+            ctx.restore()
+        }
+
         if (spriteCacheReady) {
             ctx.drawImage(playerSpriteCache, playerX, playerY)
         } else {
@@ -442,6 +458,7 @@ Window {
         showHelp = false
         playerX = (width - playerWidth) * 0.5
         playerY = height - 70
+        playerInvulnerabilityRemaining = 0
         shootCooldown = 0
         createStars()
         createBunkers()
@@ -867,6 +884,9 @@ Window {
 
             if (aabb(eb.x, eb.y, eb.w, eb.h, playerX, playerY, playerWidth, playerHeight)) {
                 eb.dead = true
+                if (playerInvulnerabilityRemaining > 0) {
+                    continue
+                }
                 lives -= 1
                 // Add screen shake effect when player is hit
                 screenShakeIntensity = 20
@@ -874,8 +894,10 @@ Window {
 
                 playSfx(sfxPlayerHit)
                 if (lives <= 0) {
+                    playerInvulnerabilityRemaining = 0
                     setGameState(stateGameOver)
                 } else {
+                    playerInvulnerabilityRemaining = playerInvulnerabilityDuration
                     playerX = (width - playerWidth) * 0.5
                 }
                 continue
@@ -954,6 +976,7 @@ Window {
 
     function stepSimulation(dt) {
         updateHitParticles(dt)
+        playerInvulnerabilityRemaining = Math.max(0, playerInvulnerabilityRemaining - dt)
         shootCooldown = Math.max(0, shootCooldown - dt)
 
         if (leftPressed) {
