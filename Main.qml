@@ -65,6 +65,7 @@ Window {
     property real lastFrameMs: 0
     property int spriteCachePaintCount: 0
     property bool spriteCacheReady: false
+    property bool highScoreDirty: false
 
     property bool leftPressed: false
     property real attractTargetX: 0
@@ -254,8 +255,10 @@ Window {
         gameState = nextState
         if (nextState === stateWaveCleared) {
             playSfx(sfxWaveClear)
+            flushHighScoreIfNeeded()
         } else if (nextState === stateGameOver) {
             playSfx(sfxGameOver)
+            flushHighScoreIfNeeded()
         }
         if (nextState === stateGameOver) {
             // Reset screen shake when game over
@@ -285,10 +288,18 @@ Window {
         })
     }
 
+    function flushHighScoreIfNeeded() {
+        if (!highScoreDirty) {
+            return
+        }
+        saveHighScore()
+        highScoreDirty = false
+    }
+
     function updateHighScoreIfNeeded() {
         if (score > highScore) {
             highScore = score
-            saveHighScore()
+            highScoreDirty = true
         }
     }
 
@@ -1395,6 +1406,7 @@ Window {
 
     Component.onCompleted: {
         loadHighScore()
+        highScoreDirty = false
         staticBackgroundCache.requestPaint()
         playerSpriteCache.requestPaint()
         alienType0Frame0Cache.requestPaint()
@@ -1413,8 +1425,15 @@ Window {
     onWidthChanged: staticBackgroundCache.requestPaint()
     onHeightChanged: staticBackgroundCache.requestPaint()
     onVisibilityChanged: {
+        if (visibility === Window.Hidden || visibility === Window.Minimized) {
+            flushHighScoreIfNeeded()
+        }
         if (visibility === Window.Maximized || visibility === Window.FullScreen) {
             visibility = Window.Windowed
         }
+    }
+
+    onClosing: function(closeEvent) {
+        flushHighScoreIfNeeded()
     }
 }
