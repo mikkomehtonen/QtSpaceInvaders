@@ -75,6 +75,12 @@ Window {
     property int spriteCachePaintCount: 0
     property bool spriteCacheReady: false
     property bool highScoreDirty: false
+    property int maxHitParticles: 400
+    property int maxFireworksParticles: 360
+    property int musicStallChecks: 0
+    property int lastMusicPosition: 0
+    property real alienHitSfxCooldown: 0
+    property bool startupReady: false
 
     property bool leftPressed: false
     property real attractTargetX: 0
@@ -293,12 +299,23 @@ Window {
         return "#98ff95"
     }
 
-    function playSfx(effect) {
+    function playSfx(effect, retrigger) {
         if (!soundsEnabled || !effect) {
             return
         }
-        effect.stop()
+        if (retrigger && effect.playing) {
+            effect.stop()
+        }
         effect.play()
+    }
+
+    function playAlienHitSfx() {
+        // Cap rapid retriggers to avoid backend pressure during chain hits.
+        if (alienHitSfxCooldown > 0) {
+            return
+        }
+        playSfx(sfxAlienHit, false)
+        alienHitSfxCooldown = 0.045
     }
 
     function setGameState(nextState) {
@@ -446,7 +463,7 @@ Window {
         }
 
         aliens = wave
-        aliveAliensCache = wave
+        aliveAliensCache = []
         aliveAliensByRowCache = []
         playerBullets = []
         playerBombs = []
@@ -595,8 +612,10 @@ Window {
         var aliveCount = 0
         var minX = 1e9
         var maxX = -1e9
-        var aliveList = []
-        var byRow = []
+        var aliveList = aliveAliensCache
+        var byRow = aliveAliensByRowCache
+        aliveList.length = 0
+        byRow.length = 0
 
         for (var i = 0; i < aliens.length; ++i) {
             var currentAlien = aliens[i]
@@ -761,7 +780,7 @@ Window {
         })
         shootCooldown = shootDelay
         if (playSound) {
-            playSfx(sfxShoot)
+            playSfx(sfxShoot, true)
         }
     }
 
@@ -778,27 +797,47 @@ Window {
             h: 16,
             dead: false
         })
-        playSfx(sfxShoot)
+        playSfx(sfxShoot, true)
     }
 
     function cleanupProjectiles() {
-        for (var p = playerBullets.length - 1; p >= 0; --p) {
-            if (playerBullets[p].dead) {
-                playerBullets.splice(p, 1)
+        var writeIndex = 0
+        for (var p = 0; p < playerBullets.length; ++p) {
+            if (!playerBullets[p].dead) {
+                playerBullets[writeIndex] = playerBullets[p]
+                writeIndex += 1
             }
         }
+        playerBullets.length = writeIndex
 
-        for (var b = playerBombs.length - 1; b >= 0; --b) {
-            if (playerBombs[b].dead) {
-                playerBombs.splice(b, 1)
+        writeIndex = 0
+        for (var b = 0; b < playerBombs.length; ++b) {
+            if (!playerBombs[b].dead) {
+                playerBombs[writeIndex] = playerBombs[b]
+                writeIndex += 1
             }
         }
+        playerBombs.length = writeIndex
 
-        for (var e = enemyBullets.length - 1; e >= 0; --e) {
-            if (enemyBullets[e].dead) {
-                enemyBullets.splice(e, 1)
+        writeIndex = 0
+        for (var e = 0; e < enemyBullets.length; ++e) {
+            if (!enemyBullets[e].dead) {
+                enemyBullets[writeIndex] = enemyBullets[e]
+                writeIndex += 1
             }
         }
+        enemyBullets.length = writeIndex
+    }
+
+    function cleanupBunkers() {
+        var writeIndex = 0
+        for (var i = 0; i < bunkers.length; ++i) {
+            if (bunkers[i].hp > 0) {
+                bunkers[writeIndex] = bunkers[i]
+                writeIndex += 1
+            }
+        }
+        bunkers.length = writeIndex
     }
 
     function stepStartAttractMode(dt) {
@@ -828,7 +867,12 @@ Window {
     }
 
     function spawnAlienHitParticles(x, y, color) {
-        for (var i = 0; i < 14; ++i) {
+        if (hitParticles.length >= maxHitParticles) {
+            return
+        }
+        var remaining = maxHitParticles - hitParticles.length
+        var spawnCount = Math.min(14, remaining)
+        for (var i = 0; i < spawnCount; ++i) {
             var angle = Math.random() * Math.PI * 2
             var speed = 70 + Math.random() * 140
             var life = 0.36 + Math.random() * 0.24
@@ -846,23 +890,31 @@ Window {
     }
 
     function updateHitParticles(dt) {
-        var out = []
+        var writeIndex = 0
         for (var i = 0; i < hitParticles.length; ++i) {
             var p = hitParticles[i]
             p.life -= dt
-            if (p.life <= 0) continue
+            if (p.life <= 0) {
+                continue
+            }
             p.x += p.vx * dt
             p.y += p.vy * dt
             p.vx *= 0.96
             p.vy = p.vy * 0.96 + 140 * dt
-            out.push(p)
+            hitParticles[writeIndex] = p
+            writeIndex += 1
         }
-        hitParticles = out
+        hitParticles.length = writeIndex
     }
 
     function spawnFireworkBurst(x, y) {
+        if (fireworks.length >= maxFireworksParticles) {
+            return
+        }
         var palette = ["#ffd56a", "#8ee9ff", "#ff92b0", "#9dfd8f", "#ffffff"]
-        for (var i = 0; i < 34; ++i) {
+        var remaining = maxFireworksParticles - fireworks.length
+        var spawnCount = Math.min(34, remaining)
+        for (var i = 0; i < spawnCount; ++i) {
             var angle = Math.random() * Math.PI * 2
             var speed = 90 + Math.random() * 190
             var life = 0.75 + Math.random() * 0.7
@@ -880,7 +932,7 @@ Window {
     }
 
     function updateFireworks(dt) {
-        var out = []
+        var writeIndex = 0
         for (var i = 0; i < fireworks.length; ++i) {
             var p = fireworks[i]
             p.life -= dt
@@ -891,9 +943,10 @@ Window {
             p.y += p.vy * dt
             p.vx *= 0.985
             p.vy = p.vy * 0.985 + 120 * dt
-            out.push(p)
+            fireworks[writeIndex] = p
+            writeIndex += 1
         }
-        fireworks = out
+        fireworks.length = writeIndex
     }
 
     function stepVictoryEffects(dt) {
@@ -913,7 +966,7 @@ Window {
         alien.hp = Math.max(0, alien.hp - damage)
         var hitColor = alien.boss ? "#ff7a5d" : alienColorForRow(alien.row)
         spawnAlienHitParticles(alien.x + alien.w * 0.5, alien.y + alien.h * 0.5, hitColor)
-        playSfx(sfxAlienHit)
+        playAlienHitSfx()
 
         if (alien.hp <= 0) {
             alien.alive = false
@@ -1096,11 +1149,7 @@ Window {
             }
         }
 
-        for (var z = bunkers.length - 1; z >= 0; --z) {
-            if (bunkers[z].hp <= 0) {
-                bunkers.splice(z, 1)
-            }
-        }
+        cleanupBunkers()
 
         cleanupProjectiles()
     }
@@ -1158,6 +1207,7 @@ Window {
         updateHitParticles(dt)
         playerInvulnerabilityRemaining = Math.max(0, playerInvulnerabilityRemaining - dt)
         shootCooldown = Math.max(0, shootCooldown - dt)
+        alienHitSfxCooldown = Math.max(0, alienHitSfxCooldown - dt)
 
         if (leftPressed) {
             playerX -= playerSpeed * dt
@@ -1295,10 +1345,22 @@ Window {
     }
 
     Timer {
+        id: startupWarmup
+        interval: 1000
+        repeat: false
+        running: false
+        onTriggered: {
+            root.startupReady = true
+            root.lastFrameMs = 0
+            root.updateMusicState()
+        }
+    }
+
+    Timer {
         id: gameTimer
         interval: 16
         repeat: true
-        running: true
+        running: root.startupReady
         onTriggered: {
             var nowMs = Date.now()
             var dt = root.lastFrameMs > 0 ? (nowMs - root.lastFrameMs) / 1000.0 : interval / 1000.0
@@ -1717,6 +1779,14 @@ Window {
         function nextSong() {
             playlistIndex = (playlistIndex + 1) % playlist.length
             pendingPlay = true
+            root.musicStallChecks = 0
+            root.lastMusicPosition = 0
+        }
+
+        function shouldStartPendingSong() {
+            return mediaStatus === MediaPlayer.LoadedMedia ||
+                   mediaStatus === MediaPlayer.BufferingMedia ||
+                   mediaStatus === MediaPlayer.BufferedMedia
         }
 
         readonly property var playlist: [
@@ -1732,10 +1802,65 @@ Window {
         onMediaStatusChanged: {
             if (mediaStatus === MediaPlayer.EndOfMedia) {
                 nextSong()
-            } else if (pendingPlay && mediaStatus === MediaPlayer.LoadedMedia) {
+            } else if (pendingPlay && shouldStartPendingSong()) {
+                pendingPlay = false
+                play()
+            } else if (mediaStatus === MediaPlayer.StalledMedia && root.musicEnabled) {
+                play()
+            }
+            if (mediaStatus === MediaPlayer.LoadingMedia || mediaStatus === MediaPlayer.LoadedMedia) {
+                root.musicStallChecks = 0
+                root.lastMusicPosition = 0
+            }
+        }
+
+        onPlaybackStateChanged: {
+            if (root.musicEnabled &&
+                    playbackState !== MediaPlayer.PlayingState &&
+                    pendingPlay &&
+                    shouldStartPendingSong()) {
                 pendingPlay = false
                 play()
             }
+        }
+    }
+
+    Timer {
+        id: musicWatchdog
+        interval: 500
+        repeat: true
+        running: root.musicEnabled
+        onTriggered: {
+            if (!root.musicEnabled) {
+                return
+            }
+            if (bgmPlayer.playbackState !== MediaPlayer.PlayingState) {
+                root.musicStallChecks = 0
+                root.lastMusicPosition = bgmPlayer.position
+                if (bgmPlayer.mediaStatus !== MediaPlayer.LoadingMedia &&
+                        bgmPlayer.mediaStatus !== MediaPlayer.StalledMedia &&
+                        bgmPlayer.mediaStatus !== MediaPlayer.InvalidMedia) {
+                    bgmPlayer.play()
+                }
+                return
+            }
+
+            // Recover from silent backend stalls where state remains Playing but position stops moving.
+            var currentPos = bgmPlayer.position
+            if (Math.abs(currentPos - root.lastMusicPosition) < 8 &&
+                    bgmPlayer.mediaStatus !== MediaPlayer.EndOfMedia &&
+                    bgmPlayer.mediaStatus !== MediaPlayer.BufferingMedia &&
+                    bgmPlayer.mediaStatus !== MediaPlayer.StalledMedia) {
+                root.musicStallChecks += 1
+                if (root.musicStallChecks >= 8) {
+                    root.musicStallChecks = 0
+                    bgmPlayer.stop()
+                    bgmPlayer.play()
+                }
+            } else {
+                root.musicStallChecks = 0
+            }
+            root.lastMusicPosition = currentPos
         }
     }
 
@@ -1752,8 +1877,8 @@ Window {
         alienType2Frame1Cache.requestPaint()
         createStars()
         resetStartAttractMode()
-        updateMusicState()
         gameCanvas.requestPaint()
+        startupWarmup.start()
     }
 
     onMusicEnabledChanged: updateMusicState()
